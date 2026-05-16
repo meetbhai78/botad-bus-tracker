@@ -29,22 +29,18 @@ jobs:
           channel: 'stable'
 
       # Build Passenger App
-      - name: Create Platform Folders & Get Dependencies (Passenger App)
+      - name: Get Dependencies (Passenger App)
         working-directory: ./passenger-app
-        run: |
-          flutter create .
-          flutter pub get
+        run: flutter pub get
 
       - name: Build APK (Passenger App)
         working-directory: ./passenger-app
         run: flutter build apk --release
 
       # Build Driver App
-      - name: Create Platform Folders & Get Dependencies (Driver App)
+      - name: Get Dependencies (Driver App)
         working-directory: ./driver-app
-        run: |
-          flutter create .
-          flutter pub get
+        run: flutter pub get
 
       - name: Build APK (Driver App)
         working-directory: ./driver-app
