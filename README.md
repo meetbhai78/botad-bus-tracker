@@ -26,13 +26,6 @@ npm run dev
 
 API: `http://localhost:5000` · Health: `GET /health`
 
-**Seed logins**
-
-| Role | Phone | Password |
-|------|-------|----------|
-| Admin | 9999999999 | admin123 |
-| Driver | 9876543210 | driver123 |
-
 ### 2. Frontend
 
 ```bash
