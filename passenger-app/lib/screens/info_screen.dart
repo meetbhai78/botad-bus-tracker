@@ -85,7 +85,7 @@ class InfoScreen extends StatelessWidget {
         InfoType.feedback =>
           'Tell us about your travel experience on Botad city buses. Your suggestions help improve routes and timings.',
         InfoType.help =>
-          'Helpline: 1800-XXX-XXXX (9 AM – 6 PM)\nEmail: support@botadbus.in\nBotad Bus Stand, Gujarat',
+          'Developer: Meet Berani\nEmail: meetberani78@gmail.com\nAddress: Bhadravadi, Botad, Gujarat',
         InfoType.refund =>
           'For refund complaints, share your ticket number and travel date. Refunds are processed within 5–7 working days.',
       };

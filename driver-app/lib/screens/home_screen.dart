@@ -76,8 +76,9 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     // Find if a bus is already assigned to this driver
+    final userId = user?['id'] ?? user?['_id'];
     final assignedBus = _buses.firstWhere(
-      (b) => b['driver'] != null && b['driver']['_id'] == user?['_id'],
+      (b) => b['driver'] != null && (b['driver']['_id'] == userId || b['driver']['id'] == userId),
       orElse: () => null,
     );
 
@@ -151,7 +152,8 @@ class _HomeScreenState extends State<HomeScreen> {
                                 itemCount: _buses.length,
                                 itemBuilder: (context, index) {
                                   final bus = _buses[index];
-                                  final isAssignedToOther = bus['driver'] != null && bus['driver']['_id'] != user?['_id'];
+                                  final isAssignedToOther = bus['driver'] != null && 
+                                    (bus['driver']['_id'] != userId && bus['driver']['id'] != userId);
                                   
                                   return Card(
                                     child: ListTile(
