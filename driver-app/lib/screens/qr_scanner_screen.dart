@@ -23,7 +23,7 @@ class _QRScannerScreenState extends State<QRScannerScreen> {
     try {
       final token = await AuthService().getToken();
       final response = await http.post(
-        Uri.parse('$backendUrl/api/tickets/verify'),
+        Uri.parse('$apiBaseUrl/api/tickets/verify'),
         headers: {
           'Content-Type': 'application/json',
           'Authorization': 'Bearer $token',
