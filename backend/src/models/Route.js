@@ -14,6 +14,7 @@ const RouteSchema = new mongoose.Schema({
   ],
   totalDistance: Number,
   totalTime: Number,
+  polyline: String, // Encoded OSRM polyline for map drawing
 });
 
 module.exports = mongoose.model('Route', RouteSchema);

@@ -106,6 +106,15 @@ function showModal(id) {
       });
       setTimeout(() => routeMap.invalidateSize(), 300);
     }
+  } else if (id === 'busModal') {
+    // Populate routes dropdown
+    fetchWithAuth('/routes').then(data => {
+      if (data.success) {
+        const select = document.getElementById('busRouteSelect');
+        select.innerHTML = '<option value="">Select a Route</option>' + 
+          data.routes.map(r => `<option value="${r._id}">${r.routeNumber} - ${r.routeName}</option>`).join('');
+      }
+    });
   }
 }
 
@@ -214,11 +223,13 @@ document.getElementById('routeForm').addEventListener('submit', async (e) => {
     
     let totalDistanceKm = 0;
     let totalTimeMins = 0;
+    let polyline = "";
 
     if (osrmData.code === 'Ok' && osrmData.routes.length > 0) {
       // OSRM distance is in meters, duration is in seconds
       totalDistanceKm = (osrmData.routes[0].distance / 1000).toFixed(2);
       totalTimeMins = Math.ceil(osrmData.routes[0].duration / 60);
+      polyline = osrmData.routes[0].geometry; // Save the encoded polyline string
     } else {
       // Fallback simple math if OSRM fails
       totalDistanceKm = routeMarkers.length * 2;
@@ -240,7 +251,8 @@ document.getElementById('routeForm').addEventListener('submit', async (e) => {
         routeName,
         stops,
         totalDistance: parseFloat(totalDistanceKm),
-        totalTime: parseInt(totalTimeMins)
+        totalTime: parseInt(totalTimeMins),
+        polyline: polyline
       })
     });
 
@@ -267,13 +279,15 @@ document.getElementById('busForm').addEventListener('submit', async (e) => {
   const busNumber = document.getElementById('busNumber').value;
   const busName = document.getElementById('busName').value;
   const capacity = document.getElementById('capacity').value;
+  const routeId = document.getElementById('busRouteSelect').value;
 
   const res = await fetchWithAuth('/admin/buses', {
     method: 'POST',
     body: JSON.stringify({
       busNumber,
       busName,
-      capacity: parseInt(capacity)
+      capacity: parseInt(capacity),
+      route: routeId || null
     })
   });
 

@@ -7,6 +7,9 @@ import '../theme/app_colors.dart';
 import 'bus_list_screen.dart';
 import 'search_buses_screen.dart';
 import 'timetable_screen.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import '../constants.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key, this.targetBusId, this.embedded = false});
@@ -30,6 +33,59 @@ class _MapScreenState extends State<MapScreen> {
   BusStop? _selectedDestination;
   bool _hasFocusedOnTarget = false;
   bool _notifiedArrival = false;
+  
+  List<LatLng> _selectedRoutePolyline = [];
+  String? _selectedBusId;
+
+  // Simple OSRM Polyline Decoder (Precision 5)
+  List<LatLng> _decodePolyline(String encoded) {
+    List<LatLng> poly = [];
+    int index = 0, len = encoded.length;
+    int lat = 0, lng = 0;
+
+    while (index < len) {
+      int b, shift = 0, result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlat = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lat += dlat;
+
+      shift = 0;
+      result = 0;
+      do {
+        b = encoded.codeUnitAt(index++) - 63;
+        result |= (b & 0x1f) << shift;
+        shift += 5;
+      } while (b >= 0x20);
+      int dlng = ((result & 1) != 0 ? ~(result >> 1) : (result >> 1));
+      lng += dlng;
+
+      poly.add(LatLng(lat / 1E5, lng / 1E5));
+    }
+    return poly;
+  }
+
+  Future<void> _fetchRoutePolyline(String routeId) async {
+    try {
+      final res = await http.get(Uri.parse('$apiBaseUrl/api/routes/$routeId'));
+      if (res.statusCode == 200) {
+        final data = jsonDecode(res.body);
+        if (data['success'] && data['route'] != null && data['route']['polyline'] != null) {
+          final encoded = data['route']['polyline'] as String;
+          if (mounted) {
+            setState(() {
+              _selectedRoutePolyline = _decodePolyline(encoded);
+            });
+          }
+        }
+      }
+    } catch (e) {
+      debugPrint('Polyline error: $e');
+    }
+  }
 
   @override
   void initState() {
@@ -226,11 +282,18 @@ class _MapScreenState extends State<MapScreen> {
     final busNumber = busData['busNumber']?.toString() ?? '';
     final routeData = busData['route'];
     final routeName = routeData?['routeName']?.toString() ?? 'N/A';
+    final busId = busData['busId']?.toString();
+    final routeId = busData['routeId']?.toString();
     
-    // Attempt to extract stops from the route data
-    // In our backend, route object contains 'stops' array if populated, but socket might only send basic route info.
-    // If stops are missing, we just show the route name.
-    
+    setState(() {
+      _selectedBusId = busId;
+      if (routeId != null) {
+        _fetchRoutePolyline(routeId);
+      } else {
+        _selectedRoutePolyline = [];
+      }
+    });
+
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(
@@ -336,6 +399,17 @@ class _MapScreenState extends State<MapScreen> {
           urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=d39cWWFDlw1ibSbMysvD',
           userAgentPackageName: 'com.botad.passenger',
         ),
+        if (_selectedRoutePolyline.isNotEmpty)
+          PolylineLayer(
+            polylines: [
+              Polyline(
+                points: _selectedRoutePolyline,
+                strokeWidth: 5.0,
+                color: Colors.blueAccent.withOpacity(0.8),
+                isDotted: false,
+              ),
+            ],
+          ),
         MarkerLayer(markers: _stopMarkers),
         MarkerLayer(markers: _busMarkers),
       ],

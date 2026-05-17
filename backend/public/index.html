@@ -186,6 +186,12 @@
           <label>Capacity</label>
           <input type="number" id="capacity" value="50" required />
         </div>
+        <div class="input-group">
+          <label>Assign Route</label>
+          <select id="busRouteSelect" required>
+            <option value="">Loading routes...</option>
+          </select>
+        </div>
         <div class="modal-actions">
           <button type="button" class="btn secondary" onclick="closeModal('busModal')">Cancel</button>
           <button type="submit" class="btn primary">Save Bus</button>
