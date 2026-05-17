@@ -1,5 +1,5 @@
 /**
- * Botad seed data — routes, admin, sample driver & bus
+ * Botad seed data — stops, routes, timetable, admin, driver & bus
  * Run: npm run seed (from backend folder, with .env set)
  */
 require('dotenv').config();
@@ -7,8 +7,10 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const connectDB = require('../config/db');
 const User = require('../models/User');
+const Stop = require('../models/Stop');
 const Route = require('../models/Route');
 const Bus = require('../models/Bus');
+const Timetable = require('../models/Timetable');
 
 const botadStops = [
   { name: 'Botad Bus Stand', lat: 22.1647, lng: 71.6661 },
@@ -23,18 +25,18 @@ const botadStops = [
 
 const routeDefs = [
   {
-    routeNumber: 'Route 1',
-    routeName: 'Bus Stand to College',
+    routeNumber: 'R1',
+    routeName: 'Bus Stand → College',
     stopNames: ['Botad Bus Stand', 'Botad Hospital', 'Botad Market', 'Gandhi Chowk', 'Botad College'],
   },
   {
-    routeNumber: 'Route 2',
-    routeName: 'Railway to Bus Stand',
+    routeNumber: 'R2',
+    routeName: 'Railway → Bus Stand',
     stopNames: ['Railway Station', 'Government School', 'Sadar Bazaar', 'Botad Bus Stand'],
   },
   {
-    routeNumber: 'Route 3',
-    routeName: 'College to Railway',
+    routeNumber: 'R3',
+    routeName: 'College → Railway',
     stopNames: ['Botad College', 'Botad Market', 'Botad Hospital', 'Railway Station'],
   },
 ];
@@ -43,13 +45,16 @@ async function seed() {
   await connectDB();
 
   await User.deleteMany({});
+  await Stop.deleteMany({});
   await Route.deleteMany({});
   await Bus.deleteMany({});
+  await Timetable.deleteMany({});
 
   const adminPass = await bcrypt.hash('admin123', 12);
   const driverPass = await bcrypt.hash('driver123', 12);
+  const passengerPass = await bcrypt.hash('pass123', 12);
 
-  const admin = await User.create({
+  await User.create({
     name: 'Botad Admin',
     phone: '9999999999',
     password: adminPass,
@@ -64,14 +69,25 @@ async function seed() {
     role: 'driver',
   });
 
-  const stopMap = Object.fromEntries(botadStops.map((s) => [s.name, s]));
+  await User.create({
+    name: 'Demo Passenger',
+    phone: '9123456789',
+    password: passengerPass,
+    role: 'passenger',
+    email: 'passenger@demo.local',
+  });
+
+  const stopDocs = {};
+  for (const s of botadStops) {
+    stopDocs[s.name] = await Stop.create(s);
+  }
 
   const routes = [];
   for (const def of routeDefs) {
     const stops = def.stopNames.map((name, i) => ({
       name,
-      lat: stopMap[name].lat,
-      lng: stopMap[name].lng,
+      lat: stopDocs[name].lat,
+      lng: stopDocs[name].lng,
       order: i + 1,
       estimatedTime: i * 8,
     }));
@@ -86,7 +102,7 @@ async function seed() {
     );
   }
 
-  await Bus.create({
+  const bus = await Bus.create({
     busNumber: 'GJ-11-T-2847',
     busName: 'B1',
     capacity: 50,
@@ -96,12 +112,37 @@ async function seed() {
     currentLocation: { lat: 22.1647, lng: 71.6661, updatedAt: new Date() },
   });
 
+  const departures = ['07:00', '09:30', '12:00', '17:30'];
+  for (const time of departures) {
+    await Timetable.create({
+      route: routes[0]._id,
+      bus: bus._id,
+      label: `Morning service ${time}`,
+      departureTime: time,
+      direction: 'Bus Stand to College',
+      schedule: routes[0].stops.map((s, i) => ({
+        stop: stopDocs[s.name]._id,
+        stopName: s.name,
+        arrivalTime: addMinutes(time, i * 8),
+        order: i + 1,
+      })),
+    });
+  }
+
   console.log('Seed complete!');
-  console.log('Admin: phone 9999999999 / password admin123');
-  console.log('Driver: phone 9876543210 / password driver123');
-  console.log('Admin id:', admin._id.toString());
+  console.log('Admin:    phone 9999999999 / admin123');
+  console.log('Driver:   phone 9876543210 / driver123');
+  console.log('Passenger: phone 9123456789 / pass123');
 
   await mongoose.disconnect();
+}
+
+function addMinutes(hhmm, mins) {
+  const [h, m] = hhmm.split(':').map(Number);
+  const total = h * 60 + m + mins;
+  const nh = Math.floor(total / 60) % 24;
+  const nm = total % 60;
+  return `${String(nh).padStart(2, '0')}:${String(nm).padStart(2, '0')}`;
 }
 
 seed().catch((e) => {

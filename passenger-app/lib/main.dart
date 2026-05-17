@@ -1,7 +1,18 @@
 import 'package:flutter/material.dart';
-import 'screens/map_screen.dart';
+import 'package:flutter/services.dart';
+import 'screens/app_shell.dart';
+import 'theme/app_theme.dart';
 
-void main() => runApp(const BotadPassengerApp());
+void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+  SystemChrome.setSystemUIOverlayStyle(
+    const SystemUiOverlayStyle(
+      statusBarColor: Colors.transparent,
+      statusBarIconBrightness: Brightness.dark,
+    ),
+  );
+  runApp(const BotadPassengerApp());
+}
 
 class BotadPassengerApp extends StatelessWidget {
   const BotadPassengerApp({super.key});
@@ -9,9 +20,10 @@ class BotadPassengerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Botad Bus',
-      theme: ThemeData(colorSchemeSeed: const Color(0xFF0D9488), useMaterial3: true),
-      home: const MapScreen(),
+      title: 'Botad Bus Tracker',
+      debugShowCheckedModeBanner: false,
+      theme: AppTheme.light,
+      home: const AppShell(),
     );
   }
 }

@@ -59,7 +59,7 @@ class _SearchBusesScreenState extends State<SearchBusesScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Search Route')),
+      appBar: AppBar(title: const Text('Search route')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(

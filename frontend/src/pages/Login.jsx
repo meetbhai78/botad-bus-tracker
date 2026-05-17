@@ -30,7 +30,7 @@ export default function Login() {
     <div className="min-h-screen flex items-center justify-center bg-botad-dark px-4">
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
         <h1 className="text-2xl font-bold text-botad-dark">Botad Bus Tracker</h1>
-        <p className="text-slate-500 mt-1">Botad, Gujarat — Login</p>
+        <p className="text-slate-500 mt-1">Admin · Driver · Botad city bus</p>
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <div>
             <label className="block text-sm font-medium text-slate-700">Phone</label>
@@ -63,8 +63,11 @@ export default function Login() {
           </button>
         </form>
         <p className="mt-4 text-center text-sm text-slate-500">
+          Admin seed: <span className="font-mono">9999999999 / admin123</span>
+        </p>
+        <p className="mt-2 text-center text-sm text-slate-500">
           <Link to="/" className="text-botad-green">
-            Continue as guest (map only)
+            Continue as guest (passenger map)
           </Link>
         </p>
       </div>

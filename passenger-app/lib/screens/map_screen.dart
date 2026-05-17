@@ -2,13 +2,16 @@ import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import '../services/socket_service.dart';
+import '../theme/app_colors.dart';
 import 'bus_list_screen.dart';
 import 'search_buses_screen.dart';
 import 'timetable_screen.dart';
 
 class MapScreen extends StatefulWidget {
+  const MapScreen({super.key, this.targetBusId, this.embedded = false});
+
   final String? targetBusId;
-  const MapScreen({super.key, this.targetBusId});
+  final bool embedded;
 
   @override
   State<MapScreen> createState() => _MapScreenState();
@@ -26,6 +29,11 @@ class _MapScreenState extends State<MapScreen> {
     super.initState();
     _socket.onBuses = _updateMarkers;
     _socket.connect();
+    if (widget.targetBusId != null) {
+      Future.delayed(const Duration(milliseconds: 400), () {
+        _socket.watchBus(widget.targetBusId!);
+      });
+    }
   }
 
   void _updateMarkers(List<dynamic> buses) {
@@ -36,11 +44,9 @@ class _MapScreenState extends State<MapScreen> {
           .map((b) {
             final lat = b['lat'] as double;
             final lng = b['lng'] as double;
-            
-            // Auto-focus logic if a specific bus was searched
-            if (widget.targetBusId != null && b['busId'] == widget.targetBusId) {
+
+            if (widget.targetBusId != null && b['busId']?.toString() == widget.targetBusId) {
               if (!_hasFocusedOnTarget) {
-                // Delay slightly to ensure map is ready
                 Future.delayed(const Duration(milliseconds: 500), () {
                   _mapController.move(LatLng(lat, lng), 16.0);
                 });
@@ -48,7 +54,7 @@ class _MapScreenState extends State<MapScreen> {
               }
             }
 
-            final isTarget = widget.targetBusId == b['busId'];
+            final isTarget = widget.targetBusId != null && b['busId']?.toString() == widget.targetBusId;
 
             return Marker(
               point: LatLng(lat, lng),
@@ -57,11 +63,11 @@ class _MapScreenState extends State<MapScreen> {
               child: Column(
                 children: [
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: Colors.black),
+                      borderRadius: BorderRadius.circular(8),
+                      boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 4)],
                     ),
                     child: Text(
                       b['busName']?.toString() ?? 'Bus',
@@ -69,8 +75,8 @@ class _MapScreenState extends State<MapScreen> {
                     ),
                   ),
                   Icon(
-                    Icons.directions_bus,
-                    color: isTarget ? Colors.green : Colors.blue,
+                    Icons.directions_bus_rounded,
+                    color: isTarget ? AppColors.accent : AppColors.primary,
                     size: 30,
                   ),
                 ],
@@ -89,53 +95,93 @@ class _MapScreenState extends State<MapScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Botad Bus Tracker'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.schedule),
-            tooltip: 'Timetable & Stops',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const TimetableScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.search),
-            tooltip: 'Search Routes',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const SearchBusesScreen()),
-            ),
-          ),
-          IconButton(
-            icon: const Icon(Icons.list),
-            tooltip: 'All Active Buses',
-            onPressed: () => Navigator.push(
-              context,
-              MaterialPageRoute(builder: (_) => const BusListScreen()),
-            ),
-          ),
-        ],
-      ),
-      body: FlutterMap(
-        mapController: _mapController,
-        options: MapOptions(
-          initialCenter: _center,
-          initialZoom: 14.0,
+    final map = FlutterMap(
+      mapController: _mapController,
+      options: MapOptions(initialCenter: _center, initialZoom: 14.0),
+      children: [
+        TileLayer(
+          urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=d39cWWFDlw1ibSbMysvD',
+          userAgentPackageName: 'com.botad.passenger',
         ),
+        MarkerLayer(markers: _markers),
+      ],
+    );
+
+    if (!widget.embedded) {
+      return Scaffold(
+        appBar: AppBar(title: const Text('Live map')),
+        body: map,
+      );
+    }
+
+    return SafeArea(
+      child: Stack(
         children: [
-          TileLayer(
-            // MapTiler Vector/Raster URL using the provided key
-            urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=d39cWWFDlw1ibSbMysvD',
-            userAgentPackageName: 'com.botad.passenger',
-          ),
-          MarkerLayer(
-            markers: _markers,
+          map,
+          Positioned(
+            top: 12,
+            left: 16,
+            right: 16,
+            child: Material(
+              elevation: 2,
+              borderRadius: BorderRadius.circular(14),
+              color: AppColors.surface,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                child: Row(
+                  children: [
+                    const Icon(Icons.map_rounded, color: AppColors.primary),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Text(
+                        'Live buses · Botad',
+                        style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
+                      ),
+                    ),
+                    _MapAction(
+                      icon: Icons.search_rounded,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const SearchBusesScreen()),
+                      ),
+                    ),
+                    _MapAction(
+                      icon: Icons.schedule_rounded,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const TimetableScreen()),
+                      ),
+                    ),
+                    _MapAction(
+                      icon: Icons.list_rounded,
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const BusListScreen()),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
           ),
         ],
       ),
+    );
+  }
+}
+
+class _MapAction extends StatelessWidget {
+  const _MapAction({required this.icon, required this.onTap});
+
+  final IconData icon;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      icon: Icon(icon, color: AppColors.primary),
+      onPressed: onTap,
+      visualDensity: VisualDensity.compact,
     );
   }
 }

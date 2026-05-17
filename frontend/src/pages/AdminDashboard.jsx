@@ -33,90 +33,92 @@ export default function AdminDashboard() {
   ];
 
   const cards = [
-    { label: 'Active Buses', value: stats?.activeBuses ?? '—' },
-    { label: 'Passengers Today', value: stats?.passengersToday ?? '—' },
-    { label: 'Revenue (₹)', value: stats?.revenue ?? '—' },
-    { label: 'Routes', value: stats?.routes ?? '—' },
+    { label: 'Live buses', value: stats?.activeBuses ?? '—', link: null },
+    { label: 'Passengers today', value: stats?.passengersToday ?? '—', link: '/admin/users' },
+    { label: 'Revenue (₹)', value: stats?.revenue ?? '—', link: null },
+    { label: 'Routes', value: stats?.routes ?? '—', link: '/admin/routes' },
   ];
 
   return (
-    <div className="min-h-screen bg-slate-100">
-      <header className="bg-botad-dark text-white px-6 py-4 flex justify-between items-center">
-        <h1 className="text-xl font-bold">Admin Dashboard</h1>
-        <Link to="/" className="text-sm text-teal-300 hover:underline">
-          Passenger map
-        </Link>
-      </header>
-      <main className="p-6 max-w-7xl mx-auto space-y-6">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {cards.map((c) => (
-            <div key={c.label} className="bg-white rounded-xl p-4 shadow-sm">
-              <p className="text-slate-500 text-sm">{c.label}</p>
-              <p className="text-2xl font-bold text-botad-dark mt-1">{c.value}</p>
-            </div>
-          ))}
-        </div>
-        <div className="grid md:grid-cols-2 gap-6">
-          <div className="bg-white rounded-xl p-4 shadow-sm h-80">
-            <h2 className="font-semibold mb-2">Live map</h2>
-            {mapsKey && isLoaded ? (
-              <GoogleMap
-                mapContainerStyle={{ width: '100%', height: 'calc(100% - 2rem)' }}
-                center={BOTAD_CENTER}
-                zoom={13}
-              >
-                {buses.map((b) => (
-                  <Marker key={b.busId} position={{ lat: b.lat, lng: b.lng }} />
-                ))}
-              </GoogleMap>
-            ) : (
-              <p className="text-slate-500 text-sm">Add Google Maps key for live map</p>
+    <div className="p-8 max-w-6xl">
+      <h2 className="text-2xl font-bold text-slate-900">Dashboard</h2>
+      <p className="text-slate-500 text-sm mt-1">Botad city bus — overview</p>
+
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mt-6">
+        {cards.map((c) => (
+          <div key={c.label} className="bg-white rounded-2xl p-5 border border-slate-200 shadow-sm">
+            <p className="text-slate-500 text-sm">{c.label}</p>
+            <p className="text-2xl font-bold text-slate-900 mt-1">{c.value}</p>
+            {c.link && (
+              <Link to={c.link} className="text-teal-600 text-xs mt-2 inline-block hover:underline">
+                Manage →
+              </Link>
             )}
           </div>
-          <div className="bg-white rounded-xl p-4 shadow-sm h-80">
-            <h2 className="font-semibold mb-2">Passengers per hour</h2>
-            <ResponsiveContainer width="100%" height="90%">
-              <BarChart data={chartData}>
-                <XAxis dataKey="hour" />
-                <YAxis />
-                <Tooltip />
-                <Bar dataKey="passengers" fill="#0d9488" />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </div>
-        <div className="bg-white rounded-xl shadow-sm overflow-hidden">
-          <h2 className="font-semibold p-4 border-b">All buses</h2>
-          <table className="w-full text-sm">
-            <thead className="bg-slate-50">
-              <tr>
-                <th className="text-left p-3">Number</th>
-                <th className="text-left p-3">Name</th>
-                <th className="text-left p-3">Status</th>
-                <th className="text-left p-3">Live</th>
-              </tr>
-            </thead>
-            <tbody>
-              {busList.map((b) => (
-                <tr key={b._id} className="border-t">
-                  <td className="p-3">{b.busNumber}</td>
-                  <td className="p-3">{b.busName}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2 py-0.5 rounded text-xs ${
-                        b.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-slate-100'
-                      }`}
-                    >
-                      {b.status}
-                    </span>
-                  </td>
-                  <td className="p-3">{b.isLive ? 'Yes' : 'No'}</td>
-                </tr>
+        ))}
+      </div>
+
+      <div className="grid lg:grid-cols-2 gap-6 mt-6">
+        <div className="bg-white rounded-2xl p-4 border h-80">
+          <h3 className="font-semibold mb-2">Live map</h3>
+          {mapsKey && isLoaded ? (
+            <GoogleMap
+              mapContainerStyle={{ width: '100%', height: 'calc(100% - 2rem)' }}
+              center={BOTAD_CENTER}
+              zoom={13}
+            >
+              {buses.map((b) => (
+                <Marker key={b.busId} position={{ lat: b.lat, lng: b.lng }} />
               ))}
-            </tbody>
-          </table>
+            </GoogleMap>
+          ) : (
+            <p className="text-slate-500 text-sm">Add VITE_GOOGLE_MAPS_KEY for live map</p>
+          )}
         </div>
-      </main>
+        <div className="bg-white rounded-2xl p-4 border h-80">
+          <h3 className="font-semibold mb-2">Passengers per hour</h3>
+          <ResponsiveContainer width="100%" height="90%">
+            <BarChart data={chartData}>
+              <XAxis dataKey="hour" />
+              <YAxis />
+              <Tooltip />
+              <Bar dataKey="passengers" fill="#0d9488" />
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-2xl border mt-6 overflow-hidden">
+        <h3 className="font-semibold p-4 border-b">Fleet</h3>
+        <table className="w-full text-sm">
+          <thead className="bg-slate-50">
+            <tr>
+              <th className="text-left p-3">Number</th>
+              <th className="text-left p-3">Name</th>
+              <th className="text-left p-3">Status</th>
+              <th className="text-left p-3">Live</th>
+            </tr>
+          </thead>
+          <tbody>
+            {busList.map((b) => (
+              <tr key={b._id} className="border-t">
+                <td className="p-3">{b.busNumber}</td>
+                <td className="p-3">{b.busName}</td>
+                <td className="p-3">
+                  <span
+                    className={`px-2 py-0.5 rounded text-xs ${
+                      b.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-slate-100'
+                    }`}
+                  >
+                    {b.status}
+                  </span>
+                </td>
+                <td className="p-3">{b.isLive ? 'Yes' : 'No'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }

@@ -17,6 +17,8 @@ const routeRoutes = require('./src/routes/routes');
 const tripRoutes = require('./src/routes/trips');
 const ticketRoutes = require('./src/routes/tickets');
 const adminRoutes = require('./src/routes/admin');
+const stopRoutes = require('./src/routes/stops');
+const timetableRoutes = require('./src/routes/timetable');
 
 const app = express();
 const server = http.createServer(app);
@@ -35,6 +37,10 @@ app.use(
 );
 app.use(express.json());
 
+// Serve static admin files
+const path = require('path');
+app.use(express.static(path.join(__dirname, 'public')));
+
 app.get('/health', (req, res) => {
   res.json({ success: true, service: 'Botad Bus Tracker API', city: 'Botad, Gujarat' });
 });
@@ -44,6 +50,8 @@ app.use('/api/buses', busRoutes);
 app.use('/api/routes', routeRoutes);
 app.use('/api/trips', tripRoutes);
 app.use('/api/tickets', ticketRoutes);
+app.use('/api/stops', stopRoutes);
+app.use('/api/timetable', timetableRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use(errorHandler);

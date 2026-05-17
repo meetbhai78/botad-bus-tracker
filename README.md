@@ -11,6 +11,20 @@ Real-time bus tracking for **Botad City, Gujarat, India**.
 | Mobile | Flutter (driver + passenger) |
 | ETA | Python FastAPI |
 
+## Roles (GRTC-style · startup UI)
+
+| Role | Where | What they do |
+|------|--------|----------------|
+| **Admin** | Web `/admin` | Add **bus stops** (name + lat/lng), build **routes**, update **timetable**, view **drivers & passengers** |
+| **Driver** | Flutter `driver-app` | Login, start trip, GPS live tracking |
+| **Passenger** | Flutter `passenger-app` | **Register / login**, search routes, timetable, book ticket, live map |
+
+**Seed logins** (after `npm run seed` in `backend`):
+
+- Admin: `9999999999` / `admin123` → http://localhost:3000/login → Admin Console  
+- Driver: `9876543210` / `driver123`  
+- Passenger: `9123456789` / `pass123`  
+
 ## Quick start
 
 ### 1. Backend

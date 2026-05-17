@@ -2,8 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants.dart';
-import 'bus_details_screen.dart';
-
+import '../theme/app_colors.dart';
 class TimetableScreen extends StatefulWidget {
   const TimetableScreen({super.key});
 
@@ -14,7 +13,7 @@ class TimetableScreen extends StatefulWidget {
 class _TimetableScreenState extends State<TimetableScreen> {
   final TextEditingController _fromController = TextEditingController();
   final TextEditingController _toController = TextEditingController();
-  
+
   List<dynamic> timetableList = [];
   bool isLoading = false;
   bool hasSearched = false;
@@ -35,93 +34,105 @@ class _TimetableScreenState extends State<TimetableScreen> {
     try {
       final fromQuery = Uri.encodeComponent(_fromController.text.trim());
       final toQuery = Uri.encodeComponent(_toController.text.trim());
-      
-      // Re-using the buses endpoint which populates routes, 
-      // but ideally we'd fetch Trips here for scheduled times.
-      final response = await http.get(Uri.parse('$apiBaseUrl/api/buses?from=$fromQuery&to=$toQuery'));
-      
+      final response = await http.get(
+        Uri.parse('$apiBaseUrl/api/timetable/search?from=$fromQuery&to=$toQuery'),
+      );
+
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        setState(() {
-          timetableList = data['buses'] ?? [];
-        });
+        setState(() => timetableList = data['timetables'] ?? []);
       } else {
         setState(() => timetableList = []);
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: ${e.toString()}')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
+      }
     } finally {
-      setState(() => isLoading = false);
+      if (mounted) setState(() => isLoading = false);
     }
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('GSRTC-style Timetable')),
+      appBar: AppBar(title: const Text('Timetable')),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
           children: [
             Card(
-              elevation: 4,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               child: Padding(
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
                     TextField(
                       controller: _fromController,
-                      decoration: const InputDecoration(labelText: 'Source Stop', prefixIcon: Icon(Icons.trip_origin), border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: 'From stop',
+                        prefixIcon: Icon(Icons.trip_origin, color: AppColors.primary),
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 12),
                     TextField(
                       controller: _toController,
-                      decoration: const InputDecoration(labelText: 'Destination Stop', prefixIcon: Icon(Icons.place), border: OutlineInputBorder()),
+                      decoration: const InputDecoration(
+                        labelText: 'To stop',
+                        prefixIcon: Icon(Icons.place, color: AppColors.accent),
+                        border: OutlineInputBorder(),
+                      ),
                     ),
                     const SizedBox(height: 16),
                     SizedBox(
                       width: double.infinity,
                       child: FilledButton(
                         onPressed: isLoading ? null : _fetchTimetable,
-                        child: isLoading ? const CircularProgressIndicator(color: Colors.white) : const Text('View Time Table'),
+                        child: isLoading
+                            ? const SizedBox(
+                                width: 22,
+                                height: 22,
+                                child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                              )
+                            : const Text('View timetable'),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
             ),
             const SizedBox(height: 16),
             Expanded(
-              child: isLoading
-                  ? const Center(child: CircularProgressIndicator())
-                  : !hasSearched
-                      ? const Center(child: Text('Search for a route schedule'))
-                      : timetableList.isEmpty
-                          ? const Center(child: Text('No scheduled buses found.'))
-                          : ListView.builder(
-                              itemCount: timetableList.length,
-                              itemBuilder: (context, index) {
-                                final bus = timetableList[index];
-                                return Card(
-                                  child: ListTile(
-                                    leading: const CircleAvatar(child: Icon(Icons.schedule)),
-                                    title: Text('${bus['busName']} - ${bus['busNumber']}'),
-                                    subtitle: Text('Status: ${bus['status'].toString().toUpperCase()}\nSeats available: ${bus['capacity'] ?? 50}'),
-                                    isThreeLine: true,
-                                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
-                                    onTap: () {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(builder: (_) => BusDetailsScreen(bus: bus)),
-                                      );
-                                    },
-                                  ),
-                                );
-                              },
-                            ),
+              child: !hasSearched
+                  ? const Center(child: Text('Search schedule by stops', style: TextStyle(color: AppColors.textSecondary)))
+                  : timetableList.isEmpty
+                      ? const Center(child: Text('No timetable found for this route.'))
+                      : ListView.builder(
+                          itemCount: timetableList.length,
+                          itemBuilder: (context, index) {
+                            final entry = timetableList[index];
+                            final route = entry['route'];
+                            return Card(
+                              child: ExpansionTile(
+                                leading: const CircleAvatar(child: Icon(Icons.schedule)),
+                                title: Text(
+                                  '${entry['departureTime']} — ${route?['routeName'] ?? 'Route'}',
+                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                ),
+                                subtitle: Text(entry['direction']?.toString() ?? route?['routeNumber'] ?? ''),
+                                children: (entry['schedule'] as List<dynamic>? ?? [])
+                                    .map(
+                                      (s) => ListTile(
+                                        dense: true,
+                                        title: Text(s['stopName']?.toString() ?? ''),
+                                        trailing: Text(s['arrivalTime']?.toString() ?? ''),
+                                      ),
+                                    )
+                                    .toList(),
+                              ),
+                            );
+                          },
+                        ),
             ),
           ],
         ),

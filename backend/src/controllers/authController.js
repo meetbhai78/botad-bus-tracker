@@ -10,12 +10,18 @@ const register = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'Phone already registered' });
     }
     const hashed = await bcrypt.hash(password, 12);
+    if (role === 'admin' || role === 'driver') {
+      return res.status(403).json({
+        success: false,
+        message: 'Passenger registration only. Drivers are added by admin.',
+      });
+    }
     const user = await User.create({
       name,
       phone,
       email,
       password: hashed,
-      role: role === 'driver' ? 'driver' : 'passenger',
+      role: 'passenger',
     });
     res.status(201).json({
       success: true,

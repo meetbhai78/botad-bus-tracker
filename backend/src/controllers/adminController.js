@@ -1,3 +1,4 @@
+const bcrypt = require('bcryptjs');
 const Bus = require('../models/Bus');
 const User = require('../models/User');
 const Trip = require('../models/Trip');
@@ -122,10 +123,57 @@ const revenueReport = async (req, res, next) => {
   }
 };
 
+const getPassengers = async (req, res, next) => {
+  try {
+    const passengers = await User.find({ role: 'passenger' })
+      .select('-password')
+      .sort('-createdAt');
+    res.json({ success: true, passengers });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const createDriver = async (req, res, next) => {
+  try {
+    const { name, phone, email, password } = req.body;
+    const exists = await User.findOne({ phone });
+    if (exists) {
+      return res.status(400).json({ success: false, message: 'Phone already registered' });
+    }
+    const hashed = await bcrypt.hash(password || 'driver123', 12);
+    const driver = await User.create({
+      name,
+      phone,
+      email,
+      password: hashed,
+      role: 'driver',
+    });
+    res.status(201).json({
+      success: true,
+      driver: { id: driver._id, name: driver.name, phone: driver.phone, role: driver.role },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const getAllRoutesAdmin = async (req, res, next) => {
+  try {
+    const routes = await Route.find().sort('routeNumber');
+    res.json({ success: true, routes });
+  } catch (err) {
+    next(err);
+  }
+};
+
 module.exports = {
   getDashboard,
   getAllBusesAdmin,
   getDrivers,
+  getPassengers,
+  createDriver,
+  getAllRoutesAdmin,
   createBus,
   updateBus,
   deleteBus,

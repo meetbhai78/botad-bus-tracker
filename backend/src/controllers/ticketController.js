@@ -85,4 +85,32 @@ const cancelTicket = async (req, res, next) => {
   }
 };
 
-module.exports = { bookTicket, getMyTickets, verifyTicket, cancelTicket };
+const bookTicketSimple = async (req, res, next) => {
+  try {
+    const { fromStop, toStop, price } = req.body;
+    const expiresAt = new Date(Date.now() + QR_EXPIRE_HOURS * 60 * 60 * 1000);
+    const payload = JSON.stringify({
+      passengerId: req.user._id,
+      fromStop,
+      toStop,
+      expiresAt,
+    });
+    const ticket = await Ticket.create({
+      passenger: req.user._id,
+      fromStop,
+      toStop,
+      price: price || TICKET_PRICE,
+      qrCode: payload,
+      expiresAt,
+    });
+    res.status(201).json({
+      success: true,
+      ticket,
+      data: { qrCode: payload, ticketId: ticket._id },
+    });
+  } catch (err) {
+    next(err);
+  }
+};
+
+module.exports = { bookTicket, bookTicketSimple, getMyTickets, verifyTicket, cancelTicket };
