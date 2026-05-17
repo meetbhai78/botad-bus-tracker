@@ -61,9 +61,61 @@ function logout() {
 }
 
 // Modals
+let routeMap = null;
+let routeMarkers = [];
+
 function showModal(id) {
   document.getElementById(id).classList.add('active');
+  
+  if (id === 'routeModal') {
+    // Reset form & markers
+    routeMarkers = [];
+    document.getElementById('stopsList').innerText = 'No stops selected. Click on map!';
+    
+    // Initialize map if not done yet
+    if (!routeMap) {
+      routeMap = L.map('routeMap').setView([22.1647, 71.6661], 14); // Botad center
+      L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=d39cWWFDlw1ibSbMysvD', {
+        attribution: 'MapTiler'
+      }).addTo(routeMap);
+      
+      routeMap.on('click', function(e) {
+        const stopName = prompt("Enter Stop Name:");
+        if (stopName && stopName.trim() !== '') {
+          const marker = L.marker([e.latlng.lat, e.latlng.lng]).addTo(routeMap);
+          marker.bindTooltip(stopName).openTooltip();
+          
+          routeMarkers.push({
+            name: stopName.trim(),
+            lat: e.latlng.lat,
+            lng: e.latlng.lng,
+            order: routeMarkers.length + 1
+          });
+          
+          updateStopsList();
+        }
+      });
+    } else {
+      // Clear existing markers
+      routeMap.eachLayer((layer) => {
+        if (layer instanceof L.Marker) {
+          routeMap.removeLayer(layer);
+        }
+      });
+      setTimeout(() => routeMap.invalidateSize(), 200);
+    }
+  }
 }
+
+function updateStopsList() {
+  const list = document.getElementById('stopsList');
+  if (routeMarkers.length === 0) {
+    list.innerText = 'No stops selected. Click on map!';
+  } else {
+    list.innerHTML = routeMarkers.map((m, i) => `<b>${i+1}.</b> ${m.name}`).join(' &rarr; ');
+  }
+}
+
 function closeModal(id) {
   document.getElementById(id).classList.remove('active');
 }
@@ -134,38 +186,76 @@ async function loadRoutes() {
   }
 }
 
-// Save Route
+// Save Route with Real Distance via OSRM
 document.getElementById('routeForm').addEventListener('submit', async (e) => {
   e.preventDefault();
+  
+  if (routeMarkers.length < 2) {
+    alert("Please click on the map to add at least 2 stops.");
+    return;
+  }
+
   const routeNumber = document.getElementById('routeNumber').value;
   const routeName = document.getElementById('routeName').value;
-  const stopsStr = document.getElementById('routeStops').value;
+  const saveBtn = document.getElementById('saveRouteBtn');
   
-  const stops = stopsStr.split(',').map((name, i) => ({
-    name: name.trim(),
-    lat: 22.1647 + (i * 0.001), // mock lat for now
-    lng: 71.6661 + (i * 0.001), // mock lng for now
-    order: i + 1,
-    estimatedTime: i * 5
-  }));
+  saveBtn.disabled = true;
+  saveBtn.innerText = "Calculating Route...";
 
-  const res = await fetchWithAuth('/routes', {
-    method: 'POST',
-    body: JSON.stringify({
-      routeNumber,
-      routeName,
-      stops,
-      totalDistance: stops.length * 2,
-      totalTime: stops.length * 5
-    })
-  });
+  try {
+    // 1. Calculate Real Distance and Time via OSRM (Open Source Routing Machine)
+    const coordinatesString = routeMarkers.map(m => `${m.lng},${m.lat}`).join(';');
+    const osrmUrl = `https://router.project-osrm.org/route/v1/driving/${coordinatesString}?overview=false`;
+    
+    const osrmRes = await fetch(osrmUrl);
+    const osrmData = await osrmRes.json();
+    
+    let totalDistanceKm = 0;
+    let totalTimeMins = 0;
 
-  if (res.success) {
-    closeModal('routeModal');
-    loadRoutes();
-    document.getElementById('routeForm').reset();
-  } else {
-    alert('Failed to save route: ' + res.message);
+    if (osrmData.code === 'Ok' && osrmData.routes.length > 0) {
+      // OSRM distance is in meters, duration is in seconds
+      totalDistanceKm = (osrmData.routes[0].distance / 1000).toFixed(2);
+      totalTimeMins = Math.ceil(osrmData.routes[0].duration / 60);
+    } else {
+      // Fallback simple math if OSRM fails
+      totalDistanceKm = routeMarkers.length * 2;
+      totalTimeMins = routeMarkers.length * 5;
+    }
+    
+    // Add estimated times to each stop (distributed roughly)
+    const stops = routeMarkers.map((m, index) => ({
+      ...m,
+      estimatedTime: Math.round((totalTimeMins / routeMarkers.length) * (index))
+    }));
+
+    // 2. Save to Backend
+    saveBtn.innerText = "Saving to Server...";
+    const res = await fetchWithAuth('/routes', {
+      method: 'POST',
+      body: JSON.stringify({
+        routeNumber,
+        routeName,
+        stops,
+        totalDistance: parseFloat(totalDistanceKm),
+        totalTime: parseInt(totalTimeMins)
+      })
+    });
+
+    if (res.success) {
+      closeModal('routeModal');
+      loadRoutes();
+      document.getElementById('routeForm').reset();
+      routeMarkers = [];
+    } else {
+      alert('Failed to save route: ' + res.message);
+    }
+  } catch (err) {
+    console.error(err);
+    alert('Error calculating route. Check internet connection.');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.innerText = "Save Route (Auto-calculates Distance)";
   }
 });
 

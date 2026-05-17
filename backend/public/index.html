@@ -8,6 +8,8 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="admin.css">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 </head>
 <body>
   
@@ -137,24 +139,32 @@
 
   <!-- Modals -->
   <div class="modal-overlay" id="routeModal">
-    <div class="modal">
-      <h2>Add New Route</h2>
+    <div class="modal" style="width: 800px; max-width: 90vw;">
+      <h2>Add New Route (Interactive Map)</h2>
+      <p style="color: #666; font-size: 14px; margin-bottom: 15px;">1. Type Route Info &nbsp;&nbsp; 2. Click on the map to add Stops in order.</p>
       <form id="routeForm">
-        <div class="input-group">
-          <label>Route Number (e.g. Route 4)</label>
-          <input type="text" id="routeNumber" required />
+        <div style="display: flex; gap: 15px;">
+          <div class="input-group" style="flex: 1;">
+            <label>Route Number</label>
+            <input type="text" id="routeNumber" placeholder="e.g. R4" required />
+          </div>
+          <div class="input-group" style="flex: 2;">
+            <label>Route Name</label>
+            <input type="text" id="routeName" placeholder="e.g. Hospital to Station" required />
+          </div>
         </div>
+        
         <div class="input-group">
-          <label>Route Name (e.g. Hospital to Station)</label>
-          <input type="text" id="routeName" required />
+          <label>Selected Stops</label>
+          <div id="stopsList" style="min-height: 40px; padding: 10px; background: #f8f9fa; border-radius: 6px; font-size: 14px; color: #333;">No stops selected. Click on map!</div>
         </div>
-        <div class="input-group">
-          <label>Stops (Comma separated: Stop1, Stop2, Stop3)</label>
-          <input type="text" id="routeStops" required />
-        </div>
+
+        <!-- The Map Container -->
+        <div id="routeMap" style="height: 350px; width: 100%; border-radius: 8px; margin-bottom: 15px; border: 1px solid #ddd; z-index: 1;"></div>
+        
         <div class="modal-actions">
           <button type="button" class="btn secondary" onclick="closeModal('routeModal')">Cancel</button>
-          <button type="submit" class="btn primary">Save Route</button>
+          <button type="submit" class="btn primary" id="saveRouteBtn">Save Route (Auto-calculates Distance)</button>
         </div>
       </form>
     </div>
