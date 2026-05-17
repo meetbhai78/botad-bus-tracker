@@ -95,6 +95,8 @@ function showModal(id) {
           updateStopsList();
         }
       });
+      // Fix map rendering issue when modal is shown
+      setTimeout(() => routeMap.invalidateSize(), 300);
     } else {
       // Clear existing markers
       routeMap.eachLayer((layer) => {
@@ -102,7 +104,7 @@ function showModal(id) {
           routeMap.removeLayer(layer);
         }
       });
-      setTimeout(() => routeMap.invalidateSize(), 200);
+      setTimeout(() => routeMap.invalidateSize(), 300);
     }
   }
 }

@@ -120,6 +120,26 @@ class _MapScreenState extends State<MapScreen> {
                 child: const Text('Set as Destination', style: TextStyle(color: Colors.white, fontSize: 16)),
               ),
             ),
+            const SizedBox(height: 12),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton(
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                ),
+                onPressed: () {
+                  Navigator.pop(context);
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => TimetableScreen(initialFromStop: stop.name),
+                    ),
+                  );
+                },
+                child: const Text('View Timetable for this Stop', style: TextStyle(fontSize: 16)),
+              ),
+            ),
           ],
         ),
       ),

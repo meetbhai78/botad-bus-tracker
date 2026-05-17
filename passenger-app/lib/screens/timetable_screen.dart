@@ -4,7 +4,9 @@ import 'dart:convert';
 import '../constants.dart';
 import '../theme/app_colors.dart';
 class TimetableScreen extends StatefulWidget {
-  const TimetableScreen({super.key});
+  const TimetableScreen({super.key, this.initialFromStop});
+
+  final String? initialFromStop;
 
   @override
   State<TimetableScreen> createState() => _TimetableScreenState();
@@ -17,6 +19,14 @@ class _TimetableScreenState extends State<TimetableScreen> {
   List<dynamic> timetableList = [];
   bool isLoading = false;
   bool hasSearched = false;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialFromStop != null) {
+      _fromController.text = widget.initialFromStop!;
+    }
+  }
 
   Future<void> _fetchTimetable() async {
     if (_fromController.text.isEmpty || _toController.text.isEmpty) {
