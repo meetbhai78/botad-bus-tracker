@@ -97,6 +97,39 @@ const updateStatus = async (req, res, next) => {
   }
 };
 
+const assignBus = async (req, res, next) => {
+  try {
+    const bus = await Bus.findById(req.params.id);
+    if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
+    if (bus.driver && bus.driver.toString() !== req.user._id.toString()) {
+      return res.status(400).json({ success: false, message: 'Bus is already assigned to another driver' });
+    }
+    bus.driver = req.user._id;
+    bus.status = 'active';
+    await bus.save();
+    res.json({ success: true, bus });
+  } catch (err) {
+    next(err);
+  }
+};
+
+const releaseBus = async (req, res, next) => {
+  try {
+    const bus = await Bus.findById(req.params.id);
+    if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
+    if (bus.driver && bus.driver.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'You are not assigned to this bus' });
+    }
+    bus.driver = null;
+    bus.status = 'idle';
+    bus.isLive = false;
+    await bus.save();
+    res.json({ success: true, bus });
+  } catch (err) {
+    next(err);
+  }
+};
+
 const getLocationHistory = async (req, res, next) => {
   try {
     const start = new Date();
@@ -118,4 +151,6 @@ module.exports = {
   updateLocation,
   updateStatus,
   getLocationHistory,
+  assignBus,
+  releaseBus,
 };

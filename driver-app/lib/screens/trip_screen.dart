@@ -1,16 +1,20 @@
 import 'dart:async';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:http/http.dart' as http;
 import '../services/gps_service.dart';
 import '../services/socket_service.dart';
 import '../services/auth_service.dart';
+import '../constants.dart';
 
 /// Active trip — GPS + Socket har ~3 sec
 class TripScreen extends StatefulWidget {
-  const TripScreen({super.key, required this.busId, this.tripId});
+  const TripScreen({super.key, required this.busId, required this.routeName, this.tripId});
 
   final String busId;
+  final String routeName;
   final String? tripId;
 
   @override
@@ -26,6 +30,7 @@ class _TripScreenState extends State<TripScreen> {
   StreamSubscription? _gpsSub;
   Timer? _emitTimer;
   bool _mapReady = false;
+  bool _isEnding = false;
 
   @override
   void initState() {
@@ -58,6 +63,25 @@ class _TripScreenState extends State<TripScreen> {
         tripId: widget.tripId,
       );
     });
+  }
+
+  Future<void> _endTrip() async {
+    setState(() => _isEnding = true);
+    final token = await AuthService().getToken();
+    try {
+      await http.post(
+        Uri.parse('$apiBaseUrl/api/buses/${widget.busId}/release'),
+        headers: {
+          'Authorization': 'Bearer $token',
+        },
+      );
+    } catch (e) {
+      debugPrint('Failed to release bus: $e');
+    }
+    
+    if (mounted) {
+      Navigator.pop(context);
+    }
   }
 
   @override
@@ -116,14 +140,21 @@ class _TripScreenState extends State<TripScreen> {
               children: [
                 Text('${_speed.toStringAsFixed(0)} km/h',
                     style: const TextStyle(fontSize: 36, fontWeight: FontWeight.bold)),
-                const Text('Next stop: Botad Hospital · 1.2 km'),
-                const SizedBox(height: 8),
-                const Text('Passengers: 0'),
+                Text('Route: ${widget.routeName}', style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 16)),
                 const SizedBox(height: 12),
-                OutlinedButton(
-                  onPressed: () => Navigator.pop(context),
-                  style: OutlinedButton.styleFrom(foregroundColor: Colors.red),
-                  child: const Text('End Trip'),
+                SizedBox(
+                  width: double.infinity,
+                  child: OutlinedButton(
+                    onPressed: _isEnding ? null : _endTrip,
+                    style: OutlinedButton.styleFrom(
+                      foregroundColor: Colors.red,
+                      side: const BorderSide(color: Colors.red),
+                      padding: const EdgeInsets.symmetric(vertical: 16)
+                    ),
+                    child: _isEnding 
+                      ? const CircularProgressIndicator(color: Colors.red) 
+                      : const Text('End Trip & Release Bus', style: TextStyle(fontSize: 18)),
+                  ),
                 ),
               ],
             ),
