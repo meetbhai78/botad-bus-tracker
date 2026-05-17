@@ -161,3 +161,28 @@ document.getElementById('routeForm').addEventListener('submit', async (e) => {
     alert('Failed to save route: ' + res.message);
   }
 });
+
+// Save Bus
+document.getElementById('busForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const busNumber = document.getElementById('busNumber').value;
+  const busName = document.getElementById('busName').value;
+  const capacity = document.getElementById('capacity').value;
+
+  const res = await fetchWithAuth('/admin/buses', {
+    method: 'POST',
+    body: JSON.stringify({
+      busNumber,
+      busName,
+      capacity: parseInt(capacity)
+    })
+  });
+
+  if (res.success) {
+    closeModal('busModal');
+    loadBuses();
+    document.getElementById('busForm').reset();
+  } else {
+    alert('Failed to add bus: ' + res.message);
+  }
+});

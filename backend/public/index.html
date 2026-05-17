@@ -138,6 +138,30 @@
     </div>
   </div>
 
+  <div class="modal-overlay" id="busModal">
+    <div class="modal">
+      <h2>Add New Bus</h2>
+      <form id="busForm">
+        <div class="input-group">
+          <label>Bus Number (e.g. GJ-11-AA-1234)</label>
+          <input type="text" id="busNumber" required />
+        </div>
+        <div class="input-group">
+          <label>Bus Name (e.g. Express 1)</label>
+          <input type="text" id="busName" required />
+        </div>
+        <div class="input-group">
+          <label>Capacity</label>
+          <input type="number" id="capacity" value="50" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" onclick="closeModal('busModal')">Cancel</button>
+          <button type="submit" class="btn primary">Save Bus</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <script src="admin.js"></script>
 </body>
 </html>
