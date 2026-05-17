@@ -18,6 +18,7 @@ document.querySelectorAll('.nav-btn').forEach(btn => {
     if (e.target.dataset.tab === 'overview') loadDashboardStats();
     if (e.target.dataset.tab === 'buses') loadBuses();
     if (e.target.dataset.tab === 'routes') loadRoutes();
+    if (e.target.dataset.tab === 'drivers') loadDrivers();
   });
 });
 
@@ -102,6 +103,9 @@ async function loadBuses() {
           <td><span class="status ${bus.status}">${bus.status}</span></td>
           <td>${bus.driver ? bus.driver.name : 'Unassigned'}</td>
           <td>${bus.route ? bus.route.routeName : 'Unassigned'}</td>
+          <td>
+            <button class="btn danger" onclick="deleteBus('${bus._id}')">Delete</button>
+          </td>
         </tr>
       `;
     });
@@ -121,6 +125,9 @@ async function loadRoutes() {
           <td>${route.stops.length} stops</td>
           <td>${route.totalDistance || 0} km</td>
           <td>${route.totalTime || 0} mins</td>
+          <td>
+            <button class="btn danger" onclick="deleteRoute('${route._id}')">Delete</button>
+          </td>
         </tr>
       `;
     });
@@ -186,3 +193,61 @@ document.getElementById('busForm').addEventListener('submit', async (e) => {
     alert('Failed to add bus: ' + res.message);
   }
 });
+
+// Load Drivers
+async function loadDrivers() {
+  const data = await fetchWithAuth('/admin/drivers');
+  if (data.success) {
+    const tbody = document.querySelector('#driversTable tbody');
+    tbody.innerHTML = '';
+    data.drivers.forEach(driver => {
+      tbody.innerHTML += `
+        <tr>
+          <td><strong>${driver.name}</strong></td>
+          <td>${driver.phone}</td>
+          <td>${driver.email || 'N/A'}</td>
+          <td><span class="status active">Active</span></td>
+        </tr>
+      `;
+    });
+  }
+}
+
+// Save Driver
+document.getElementById('driverForm').addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const name = document.getElementById('driverName').value;
+  const phone = document.getElementById('driverPhone').value;
+  const password = document.getElementById('driverPassword').value;
+
+  const res = await fetchWithAuth('/admin/drivers', {
+    method: 'POST',
+    body: JSON.stringify({ name, phone, password })
+  });
+
+  if (res.success) {
+    closeModal('driverModal');
+    loadDrivers();
+    document.getElementById('driverForm').reset();
+  } else {
+    alert('Failed to add driver: ' + res.message);
+  }
+});
+
+// Delete Bus
+async function deleteBus(id) {
+  if (confirm('Are you sure you want to delete this bus?')) {
+    const res = await fetchWithAuth(`/admin/buses/${id}`, { method: 'DELETE' });
+    if (res.success) loadBuses();
+    else alert('Failed to delete bus: ' + res.message);
+  }
+}
+
+// Delete Route
+async function deleteRoute(id) {
+  if (confirm('Are you sure you want to delete this route?')) {
+    const res = await fetchWithAuth(`/admin/routes/${id}`, { method: 'DELETE' });
+    if (res.success) loadRoutes();
+    else alert('Failed to delete route: ' + res.message);
+  }
+}

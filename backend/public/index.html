@@ -38,6 +38,7 @@
         <button class="nav-btn active" data-tab="overview">Overview</button>
         <button class="nav-btn" data-tab="buses">Manage Buses</button>
         <button class="nav-btn" data-tab="routes">Manage Routes</button>
+        <button class="nav-btn" data-tab="drivers">Manage Drivers</button>
         <button class="btn danger mt-auto" onclick="logout()">Logout</button>
       </nav>
     </aside>
@@ -83,6 +84,7 @@
                 <th>Status</th>
                 <th>Driver</th>
                 <th>Route</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody></tbody>
@@ -104,14 +106,34 @@
                 <th>Total Stops</th>
                 <th>Distance (km)</th>
                 <th>Time (mins)</th>
+                <th>Actions</th>
               </tr>
             </thead>
             <tbody></tbody>
           </table>
         </div>
       </div>
-    </main>
-  </div>
+    <div class="tab-content" id="drivers">
+      <div class="action-bar">
+        <h2>Registered Drivers</h2>
+        <button class="btn primary" onclick="showModal('driverModal')">+ Add New Driver</button>
+      </div>
+      <div class="table-container">
+        <table id="driversTable">
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Email</th>
+              <th>Status</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+</div>
 
   <!-- Modals -->
   <div class="modal-overlay" id="routeModal">
@@ -157,6 +179,30 @@
         <div class="modal-actions">
           <button type="button" class="btn secondary" onclick="closeModal('busModal')">Cancel</button>
           <button type="submit" class="btn primary">Save Bus</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="driverModal">
+    <div class="modal">
+      <h2>Add New Driver</h2>
+      <form id="driverForm">
+        <div class="input-group">
+          <label>Name</label>
+          <input type="text" id="driverName" required />
+        </div>
+        <div class="input-group">
+          <label>Phone</label>
+          <input type="text" id="driverPhone" required />
+        </div>
+        <div class="input-group">
+          <label>Password</label>
+          <input type="text" id="driverPassword" required />
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn secondary" onclick="closeModal('driverModal')">Cancel</button>
+          <button type="submit" class="btn primary">Save Driver</button>
         </div>
       </form>
     </div>
