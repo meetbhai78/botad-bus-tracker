@@ -1,20 +1,27 @@
 import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { adminApi } from '../services/api';
 import { useSocket } from '../hooks/useSocket';
 
-const BOTAD_CENTER = { lat: 22.1647, lng: 71.6661 };
+// Fix for default marker icon in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+const BOTAD_CENTER = [22.1647, 71.6661];
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const { buses } = useSocket();
   const [stats, setStats] = useState(null);
   const [busList, setBusList] = useState([]);
-  const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: mapsKey || '' });
-
   const [chartData, setChartData] = useState([]);
 
   useEffect(() => {
@@ -23,13 +30,8 @@ export default function AdminDashboard() {
       .then((r) => setStats(r.data.stats))
       .catch(() => navigate('/login'));
     adminApi.buses().then((r) => setBusList(r.data.buses));
-    adminApi.dailyReport().then((r) => {
-      // Filter out hours with 0 passengers to make chart cleaner, or keep all
-      setChartData(r.data.report.hourly);
-    });
+    adminApi.dailyReport().then((r) => setChartData(r.data.report.hourly)).catch(() => setChartData([]));
   }, [navigate]);
-
-
 
   const cards = [
     { label: 'Live buses', value: stats?.activeBuses ?? '—', link: null },
@@ -58,21 +60,19 @@ export default function AdminDashboard() {
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">
-        <div className="bg-white rounded-2xl p-4 border h-80">
+        <div className="bg-white rounded-2xl p-4 border h-80 z-0">
           <h3 className="font-semibold mb-2">Live map</h3>
-          {mapsKey && isLoaded ? (
-            <GoogleMap
-              mapContainerStyle={{ width: '100%', height: 'calc(100% - 2rem)' }}
-              center={BOTAD_CENTER}
-              zoom={13}
-            >
-              {buses.map((b) => (
-                <Marker key={b.busId} position={{ lat: b.lat, lng: b.lng }} />
-              ))}
-            </GoogleMap>
-          ) : (
-            <p className="text-slate-500 text-sm">Add VITE_GOOGLE_MAPS_KEY for live map</p>
-          )}
+          <MapContainer center={BOTAD_CENTER} zoom={13} style={{ width: '100%', height: 'calc(100% - 2rem)', borderRadius: '0.5rem' }}>
+            <TileLayer
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+              attribution='&copy; OpenStreetMap contributors'
+            />
+            {buses.map((b) => (
+              <Marker key={b.busId} position={[b.lat, b.lng]}>
+                <Popup>{b.busName || b.busNumber}</Popup>
+              </Marker>
+            ))}
+          </MapContainer>
         </div>
         <div className="bg-white rounded-2xl p-4 border h-80">
           <h3 className="font-semibold mb-2">Passengers per hour</h3>

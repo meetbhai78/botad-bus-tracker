@@ -1,18 +1,36 @@
 import { useEffect, useState } from 'react';
-import { GoogleMap, useJsApiLoader, Marker } from '@react-google-maps/api';
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { adminApi } from '../../services/api';
 
+// Fix for default marker icon in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
 const empty = { name: '', lat: '', lng: '', address: '' };
-const BOTAD_CENTER = { lat: 22.1647, lng: 71.6661 };
+const BOTAD_CENTER = [22.1647, 71.6661];
+
+function MapClickHandler({ setForm, form }) {
+  useMapEvents({
+    click(e) {
+      const lat = e.latlng.lat.toFixed(6);
+      const lng = e.latlng.lng.toFixed(6);
+      setForm({ ...form, lat, lng });
+    },
+  });
+  return null;
+}
 
 export default function AdminStops() {
   const [stops, setStops] = useState([]);
   const [form, setForm] = useState(empty);
   const [editing, setEditing] = useState(null);
   const [msg, setMsg] = useState('');
-  
-  const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-  const { isLoaded } = useJsApiLoader({ googleMapsApiKey: mapsKey || '' });
 
   const load = () => adminApi.stops().then((r) => setStops(r.data.stops || []));
 
@@ -60,31 +78,23 @@ export default function AdminStops() {
       <h2 className="text-2xl font-bold text-slate-900">Bus stops</h2>
       <p className="text-slate-500 text-sm mt-1">Add stops with GPS location — used in routes & passenger nearby search. Click on the map to set coordinates!</p>
 
-      {mapsKey && isLoaded ? (
-        <div className="mt-6 rounded-2xl overflow-hidden border h-80">
-          <GoogleMap
-            mapContainerStyle={{ width: '100%', height: '100%' }}
-            center={BOTAD_CENTER}
-            zoom={14}
-            onClick={(e) => {
-              const lat = e.latLng.lat().toFixed(6);
-              const lng = e.latLng.lng().toFixed(6);
-              setForm({ ...form, lat, lng });
-            }}
-          >
-            {form.lat && form.lng && !isNaN(parseFloat(form.lat)) && !isNaN(parseFloat(form.lng)) && (
-              <Marker position={{ lat: parseFloat(form.lat), lng: parseFloat(form.lng) }} />
-            )}
-            {stops.map((s) => (
-              <Marker key={s._id} position={{ lat: s.lat, lng: s.lng }} label={s.name[0]} />
-            ))}
-          </GoogleMap>
-        </div>
-      ) : (
-        <div className="mt-6 p-4 bg-orange-50 border border-orange-200 text-orange-800 rounded-lg">
-          Interactive Map is disabled. Please set VITE_GOOGLE_MAPS_KEY in environment variables to click and add stops.
-        </div>
-      )}
+      <div className="mt-6 rounded-2xl overflow-hidden border h-80 z-0 relative">
+        <MapContainer center={BOTAD_CENTER} zoom={14} style={{ width: '100%', height: '100%' }}>
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; OpenStreetMap contributors'
+          />
+          <MapClickHandler setForm={setForm} form={form} />
+          {form.lat && form.lng && !isNaN(parseFloat(form.lat)) && !isNaN(parseFloat(form.lng)) && (
+            <Marker position={[parseFloat(form.lat), parseFloat(form.lng)]} />
+          )}
+          {stops.map((s) => (
+            <Marker key={s._id} position={[s.lat, s.lng]}>
+              <Popup>{s.name}</Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
 
       <form onSubmit={submit} className="mt-6 bg-white rounded-2xl border border-slate-200 p-6 grid md:grid-cols-2 gap-4">
         <input

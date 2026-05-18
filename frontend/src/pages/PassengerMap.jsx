@@ -1,50 +1,27 @@
-import { useCallback, useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { GoogleMap, useJsApiLoader, Marker, InfoWindow } from '@react-google-maps/api';
+import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import 'leaflet/dist/leaflet.css';
+import L from 'leaflet';
 import { useSocket } from '../hooks/useSocket';
 
-const BOTAD_CENTER = { lat: 22.1647, lng: 71.6661 };
-const mapContainerStyle = { width: '100%', height: 'calc(100vh - 56px)' };
+// Fix for default marker icon in react-leaflet
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png',
+  iconUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png',
+  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png',
+});
+
+const BOTAD_CENTER = [22.1647, 71.6661];
 
 export default function PassengerMap() {
   const { buses } = useSocket();
   const [selected, setSelected] = useState(null);
-  const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
-
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey: mapsKey || '',
-  });
-
-  const onMapLoad = useCallback((map) => {
-    map.setCenter(BOTAD_CENTER);
-    map.setZoom(14);
-  }, []);
-
-  if (!mapsKey) {
-    return (
-      <div className="p-8 text-center">
-        <h1 className="text-xl font-bold">Botad Bus Tracker</h1>
-        <p className="mt-2 text-slate-600">
-          Set <code className="bg-slate-100 px-1">VITE_GOOGLE_MAPS_KEY</code> in frontend/.env
-        </p>
-        <p className="mt-4 text-sm">Live buses (no map): {buses.length}</p>
-        <ul className="mt-2 text-left max-w-md mx-auto">
-          {buses.map((b) => (
-            <li key={b.busId} className="border-b py-2">
-              {b.busName} — {b.speed ?? 0} km/h {b.eta != null && `· ETA ${b.eta} min`}
-            </li>
-          ))}
-        </ul>
-        <Link to="/login" className="text-botad-green mt-4 inline-block">
-          Login
-        </Link>
-      </div>
-    );
-  }
 
   return (
     <div>
-      <header className="h-14 bg-botad-dark text-white flex items-center justify-between px-4">
+      <header className="h-14 bg-botad-dark text-white flex items-center justify-between px-4 z-50 relative">
         <span className="font-semibold">Botad Bus Tracker</span>
         <div className="flex gap-3 text-sm">
           <span className="text-teal-300">{buses.length} live</span>
@@ -56,36 +33,36 @@ export default function PassengerMap() {
           </Link>
         </div>
       </header>
-      {!isLoaded ? (
-        <p className="p-8 text-center">Loading map…</p>
-      ) : (
-        <GoogleMap mapContainerStyle={mapContainerStyle} center={BOTAD_CENTER} zoom={14} onLoad={onMapLoad}>
+      
+      <div style={{ width: '100%', height: 'calc(100vh - 56px)', zIndex: 0, position: 'relative' }}>
+        <MapContainer center={BOTAD_CENTER} zoom={14} style={{ width: '100%', height: '100%' }}>
+          <TileLayer
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            attribution='&copy; OpenStreetMap contributors'
+          />
           {buses.map((bus) => (
             <Marker
               key={bus.busId}
-              position={{ lat: bus.lat, lng: bus.lng }}
-              label={bus.eta != null ? `${bus.eta}m` : bus.busName?.slice(0, 2) || 'B'}
-              onClick={() => setSelected(bus)}
-            />
-          ))}
-          {selected && (
-            <InfoWindow
-              position={{ lat: selected.lat, lng: selected.lng }}
-              onCloseClick={() => setSelected(null)}
+              position={[bus.lat, bus.lng]}
+              eventHandlers={{
+                click: () => setSelected(bus),
+              }}
             >
-              <div className="text-sm text-slate-800">
-                <strong>{selected.busName}</strong>
-                <br />
-                Speed: {selected.speed ?? '—'} km/h
-                <br />
-                ETA: {selected.eta ?? '—'} min
-                <br />
-                Seats: {selected.seatsAvailable ?? '—'}
-              </div>
-            </InfoWindow>
-          )}
-        </GoogleMap>
-      )}
+              <Popup>
+                <div className="text-sm text-slate-800">
+                  <strong>{bus.busName || bus.busNumber}</strong>
+                  <br />
+                  Speed: {bus.speed ?? '—'} km/h
+                  <br />
+                  ETA: {bus.eta ?? '—'} min
+                  <br />
+                  Seats: {bus.seatsAvailable ?? '—'}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+        </MapContainer>
+      </div>
     </div>
   );
 }
