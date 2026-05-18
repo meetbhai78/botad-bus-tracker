@@ -37,6 +37,7 @@ const createRoute = async (req, res, next) => {
       stops,
       totalDistance: req.body.totalDistance ?? stops.length * 1.2,
       totalTime: req.body.totalTime ?? stops.length * 8,
+      polyline: req.body.polyline,
     });
     res.status(201).json({ success: true, route });
   } catch (err) {

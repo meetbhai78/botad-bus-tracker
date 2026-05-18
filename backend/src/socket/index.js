@@ -27,6 +27,10 @@ function startBroadcast(io) {
 
     try {
       const buses = await Bus.find({ isLive: true }).populate('route', 'routeNumber');
+      const trips = await Trip.find({ status: 'ongoing', bus: { $in: buses.map((b) => b._id) } });
+      const tripMap = {};
+      trips.forEach((t) => tripMap[t.bus.toString()] = t.passengersCount || 0);
+
       const list = buses.map((b) => ({
         busId: b._id,
         busName: b.busName || b.busNumber,
@@ -37,7 +41,7 @@ function startBroadcast(io) {
         routeId: b.route?._id,
         routeNumber: b.route?.routeNumber,
         eta: liveBuses.get(b._id.toString())?.eta,
-        seatsAvailable: b.capacity || 50,
+        seatsAvailable: (b.capacity || 50) - (tripMap[b._id.toString()] || 0),
       }));
       io.emit('buses:locations', list);
     } catch (err) {
@@ -89,20 +93,41 @@ function initSocket(io) {
         bus.status = 'active';
         await bus.save();
 
+        let tripMapCount = 0;
         if (tripId) {
-          await Trip.findByIdAndUpdate(tripId, {
+          const trip = await Trip.findByIdAndUpdate(tripId, {
             $push: { locationHistory: { lat, lng, speed, timestamp: updatedAt } },
           });
+          tripMapCount = trip?.passengersCount || 0;
         }
 
         let eta = null;
         if (bus.route) {
           const Route = require('../models/Route');
+          const { predictEta } = require('../services/etaService');
           const route = await Route.findById(bus.route);
-          const nextStop = route?.stops?.find((s) => s.order === 1) || route?.stops?.[0];
-          if (nextStop) {
-            const dist = haversineKm(lat, lng, nextStop.lat, nextStop.lng);
-            eta = estimateEtaMinutes(dist, speed, updatedAt.getHours());
+          
+          if (route && route.stops && route.stops.length > 0) {
+            const hour = updatedAt.getHours();
+            for (const stop of route.stops) {
+              const etaData = await predictEta({
+                busLat: lat, busLng: lng,
+                stopLat: stop.lat, stopLng: stop.lng,
+                speed, hour
+              });
+              
+              io.to(`stop:${stop._id}`).emit('stop:eta', {
+                stopId: stop._id,
+                busId,
+                etaMinutes: etaData.etaMinutes,
+                distanceKm: etaData.distanceKm,
+                updatedAt
+              });
+              
+              if (!eta && (stop.order === 1 || stop === route.stops[0])) {
+                eta = etaData.etaMinutes;
+              }
+            }
           }
         }
 
@@ -115,7 +140,7 @@ function initSocket(io) {
           heading,
           routeId: bus.route,
           eta,
-          seatsAvailable: bus.capacity || 50,
+          seatsAvailable: (bus.capacity || 50) - tripMapCount,
           updatedAt,
         };
 

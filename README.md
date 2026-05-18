@@ -65,8 +65,11 @@ uvicorn main:app --reload --port 8000
 ```bash
 cd driver-app   # or passenger-app
 flutter pub get
-# Set API URL in lib/constants.dart (use LAN IP on real device)
-flutter run
+
+# Run with environment variables for URLs and API Keys
+# Default API_BASE_URL is http://10.0.2.2:5000 (Android Emulator)
+# Use your computer's LAN IP (e.g. 192.168.1.x) for physical devices
+flutter run --dart-define=API_BASE_URL=http://YOUR_LAN_IP:5000 --dart-define=MAPTILER_KEY=your_key_here
 ```
 
 ## Project layout
@@ -80,10 +83,13 @@ botad-bus-tracker/
 └── ai-eta/        # ETA microservice
 ```
 
-## Socket events (must match)
+## API & Socket Events (Must Match)
+
+**Canonical Route API:** The React Admin UI uses `POST /api/admin/routes` to build routes using `stops` array. `POST /api/routes` is deprecated.
+**Legacy Admin UI:** `backend/public/index.html` is deprecated. Use the React admin panel.
 
 - Client → `driver:location`, `passenger:watch`, `passenger:watchStop`
-- Server → `buses:locations` (every 3s), `bus:update`, `stop:eta`
+- Server → `buses:locations` (global list, every 3s), `bus:update` (single bus), `stop:eta` (per-stop ETAs)
 
 ## Deploy
 

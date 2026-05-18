@@ -16,7 +16,7 @@ const router = express.Router();
 router.get('/', getAllBuses);
 router.get('/nearby', getNearbyBuses);
 router.get('/:id', getBusById);
-router.get('/:id/history', getLocationHistory);
+router.get('/:id/history', protect, authorize('driver', 'admin'), getLocationHistory);
 router.put('/:id/location', protect, authorize('driver', 'admin'), updateLocation);
 router.put('/:id/status', protect, authorize('driver', 'admin'), updateStatus);
 router.post('/:id/assign', protect, authorize('driver', 'admin'), assignBus);

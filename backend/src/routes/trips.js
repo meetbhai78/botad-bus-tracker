@@ -4,8 +4,8 @@ const { protect, authorize } = require('../middleware/auth');
 
 const router = express.Router();
 
-router.get('/active', getActiveTrips);
-router.get('/:id', getTripById);
+router.get('/active', protect, getActiveTrips);
+router.get('/:id', protect, getTripById);
 router.post('/start', protect, authorize('driver'), startTrip);
 router.put('/:id/end', protect, authorize('driver'), endTrip);
 

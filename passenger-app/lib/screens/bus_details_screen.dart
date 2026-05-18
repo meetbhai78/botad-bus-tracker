@@ -1,17 +1,57 @@
 import 'package:flutter/material.dart';
+import '../services/socket_service.dart';
 
-class BusDetailsScreen extends StatelessWidget {
+class BusDetailsScreen extends StatefulWidget {
   final Map<String, dynamic> bus;
 
   const BusDetailsScreen({super.key, required this.bus});
 
   @override
+  State<BusDetailsScreen> createState() => _BusDetailsScreenState();
+}
+
+class _BusDetailsScreenState extends State<BusDetailsScreen> {
+  final _socket = SocketService();
+  final Map<String, int> _etas = {};
+
+  @override
+  void initState() {
+    super.initState();
+    _socket.connect();
+    
+    final route = widget.bus['route'];
+    final stops = route != null ? (route['stops'] as List<dynamic>) : [];
+    
+    // Watch all stops for this bus
+    for (final stop in stops) {
+      if (stop['_id'] != null) {
+        _socket.watchStop(stop['_id']);
+      }
+    }
+    
+    _socket.onStopEta = (data) {
+      if (!mounted) return;
+      if (data['busId'] == widget.bus['_id'] && data['stopId'] != null) {
+        setState(() {
+          _etas[data['stopId']] = data['etaMinutes'] as int;
+        });
+      }
+    };
+  }
+
+  @override
+  void dispose() {
+    _socket.onStopEta = null;
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final route = bus['route'];
+    final route = widget.bus['route'];
     final stops = route != null ? (route['stops'] as List<dynamic>) : [];
 
     return Scaffold(
-      appBar: AppBar(title: Text('${bus['busName']} - Route Info')),
+      appBar: AppBar(title: Text('${widget.bus['busName']} - Route Info')),
       body: Column(
         children: [
           Container(
@@ -23,11 +63,11 @@ class BusDetailsScreen extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Bus: ${bus['busNumber']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                    Text('Bus: ${widget.bus['busNumber']}', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                     const SizedBox(height: 4),
-                    Text('Status: ${bus['status'].toString().toUpperCase()}', style: TextStyle(color: bus['status'] == 'active' ? Colors.green : Colors.orange)),
+                    Text('Status: ${widget.bus['status'].toString().toUpperCase()}', style: TextStyle(color: widget.bus['status'] == 'active' ? Colors.green : Colors.orange)),
                     const SizedBox(height: 4),
-                    Text('Seats Available: ${bus['capacity'] ?? 50}'),
+                    Text('Seats Available: ${widget.bus['capacity'] ?? 50}'),
                   ],
                 ),
                 const Icon(Icons.directions_bus, size: 48, color: Colors.teal),
@@ -49,9 +89,10 @@ class BusDetailsScreen extends StatelessWidget {
                     itemCount: stops.length,
                     itemBuilder: (context, index) {
                       final stop = stops[index];
-                      // Simulate time passing (ETA simulation)
-                      // Real app would calculate this via the AI ETA endpoint
-                      final etaMin = (stop['order'] ?? index) * 15; // Mock 15 mins per stop
+                      final stopId = stop['_id'];
+                      final etaMin = _etas[stopId];
+                      
+                      String etaText = etaMin != null ? 'ETA: $etaMin mins' : 'Calculating ETA...';
                       
                       return ListTile(
                         leading: Column(
@@ -63,7 +104,7 @@ class BusDetailsScreen extends StatelessWidget {
                           ],
                         ),
                         title: Text(stop['name'] ?? 'Unknown Stop', style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text('ETA: +$etaMin mins from start'),
+                        subtitle: Text(etaText, style: TextStyle(color: etaMin != null ? Colors.blue.shade700 : Colors.grey)),
                         trailing: const Icon(Icons.map, color: Colors.grey),
                       );
                     },

@@ -105,16 +105,35 @@ class _HomeScreenState extends State<HomeScreen> {
                   
                   if (assignedBus != null) ...[
                     FilledButton.icon(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (_) => TripScreen(
-                              busId: assignedBus['_id'],
-                              routeName: assignedBus['route']?['routeName'] ?? 'Unknown Route',
-                            ),
-                          ),
-                        ).then((_) => _fetchBuses());
+                      onPressed: () async {
+                        final token = await AuthService().getToken();
+                        try {
+                          final res = await http.post(
+                            Uri.parse('$apiBaseUrl/api/trips/start'),
+                            headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
+                            body: jsonEncode({'busId': assignedBus['_id'], 'routeId': assignedBus['route']?['_id']})
+                          );
+                          final data = jsonDecode(res.body);
+                          if (res.statusCode == 200 || res.statusCode == 201) {
+                            if (!mounted) return;
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TripScreen(
+                                  busId: assignedBus['_id'],
+                                  routeName: assignedBus['route']?['routeName'] ?? 'Unknown Route',
+                                  tripId: data['trip']['_id'],
+                                ),
+                              ),
+                            ).then((_) => _fetchBuses());
+                          } else {
+                            if (!mounted) return;
+                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(data['message'] ?? 'Failed to start trip')));
+                          }
+                        } catch(e) {
+                          if (!mounted) return;
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error starting trip')));
+                        }
                       },
                       icon: const Icon(Icons.play_arrow),
                       label: const Text('Start Trip'),

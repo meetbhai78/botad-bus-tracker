@@ -15,22 +15,21 @@ export default function AdminDashboard() {
   const mapsKey = import.meta.env.VITE_GOOGLE_MAPS_KEY;
   const { isLoaded } = useJsApiLoader({ googleMapsApiKey: mapsKey || '' });
 
+  const [chartData, setChartData] = useState([]);
+
   useEffect(() => {
     adminApi
       .dashboard()
       .then((r) => setStats(r.data.stats))
       .catch(() => navigate('/login'));
     adminApi.buses().then((r) => setBusList(r.data.buses));
+    adminApi.dailyReport().then((r) => {
+      // Filter out hours with 0 passengers to make chart cleaner, or keep all
+      setChartData(r.data.report.hourly);
+    });
   }, [navigate]);
 
-  const chartData = [
-    { hour: '6', passengers: 12 },
-    { hour: '8', passengers: 45 },
-    { hour: '10', passengers: 28 },
-    { hour: '12', passengers: 35 },
-    { hour: '17', passengers: 52 },
-    { hour: '19', passengers: 38 },
-  ];
+
 
   const cards = [
     { label: 'Live buses', value: stats?.activeBuses ?? '—', link: null },

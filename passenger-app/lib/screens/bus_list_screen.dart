@@ -27,7 +27,7 @@ class _BusListScreenState extends State<BusListScreen> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          activeBuses = data['data'] ?? [];
+          activeBuses = data['buses'] ?? [];
           isLoading = false;
         });
       } else {
@@ -49,25 +49,16 @@ class _BusListScreenState extends State<BusListScreen> {
                 if (activeBuses.isEmpty)
                   const Padding(
                     padding: EdgeInsets.all(16.0),
-                    child: Text('No active buses found. Showing dummy data.', textAlign: TextAlign.center),
+                    child: Text('No active buses found.', textAlign: TextAlign.center),
                   ),
                 ...activeBuses.map((bus) => ListTile(
                       title: Text('${bus['busName']} — ${bus['busNumber']}'),
-                      subtitle: Text('Status: ${bus['status']} · Route: ${bus['route'] ?? 'N/A'}'),
+                      subtitle: Text('Status: ${bus['status']} · Route: ${bus['route']?['routeName'] ?? 'N/A'}'),
                       trailing: TextButton(
                         onPressed: () => Navigator.pop(context),
                         child: const Text('Track'),
                       ),
                     )),
-                if (activeBuses.isEmpty)
-                  ListTile(
-                    title: const Text('B1 — Route 1 (Demo)'),
-                    subtitle: const Text('ETA 8 min · Seats 42'),
-                    trailing: TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Track'),
-                    ),
-                  ),
                 const Divider(),
                 ListTile(
                   title: const Text('Book Ticket', style: TextStyle(fontWeight: FontWeight.bold, color: Colors.teal)),

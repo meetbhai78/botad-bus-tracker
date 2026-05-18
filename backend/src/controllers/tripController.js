@@ -11,7 +11,10 @@ const startTrip = async (req, res, next) => {
     }
     const existing = await Trip.findOne({ bus: busId, status: 'ongoing' });
     if (existing) {
-      return res.status(400).json({ success: false, message: 'Trip already ongoing' });
+      if (existing.driver.toString() === req.user._id.toString()) {
+        return res.status(200).json({ success: true, trip: existing, resumed: true });
+      }
+      return res.status(400).json({ success: false, message: 'Trip already ongoing by another driver' });
     }
     const trip = await Trip.create({
       bus: busId,

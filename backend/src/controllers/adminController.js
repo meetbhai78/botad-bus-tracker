@@ -56,7 +56,8 @@ const getDrivers = async (req, res, next) => {
 
 const createBus = async (req, res, next) => {
   try {
-    const bus = await Bus.create(req.body);
+    const { busNumber, busName, route, driver, capacity, status } = req.body;
+    const bus = await Bus.create({ busNumber, busName, route, driver, capacity, status });
     res.status(201).json({ success: true, bus });
   } catch (err) {
     next(err);
@@ -65,7 +66,16 @@ const createBus = async (req, res, next) => {
 
 const updateBus = async (req, res, next) => {
   try {
-    const bus = await Bus.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    const { busNumber, busName, route, driver, capacity, status } = req.body;
+    const updates = {};
+    if (busNumber !== undefined) updates.busNumber = busNumber;
+    if (busName !== undefined) updates.busName = busName;
+    if (route !== undefined) updates.route = route;
+    if (driver !== undefined) updates.driver = driver;
+    if (capacity !== undefined) updates.capacity = capacity;
+    if (status !== undefined) updates.status = status;
+    
+    const bus = await Bus.findByIdAndUpdate(req.params.id, updates, { new: true });
     if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
     res.json({ success: true, bus });
   } catch (err) {
@@ -88,6 +98,12 @@ const dailyReport = async (req, res, next) => {
     start.setHours(0, 0, 0, 0);
     const trips = await Trip.find({ startTime: { $gte: start } }).populate('bus', 'busNumber');
     const tickets = await Ticket.find({ bookedAt: { $gte: start } });
+    const hourly = Array.from({ length: 24 }, (_, i) => ({ hour: i.toString(), passengers: 0 }));
+    tickets.forEach(t => {
+      const h = new Date(t.bookedAt).getHours();
+      hourly[h].passengers += 1;
+    });
+
     res.json({
       success: true,
       report: {
@@ -96,6 +112,7 @@ const dailyReport = async (req, res, next) => {
         ticketsCount: tickets.length,
         revenue: tickets.reduce((s, t) => s + (t.price || 0), 0),
         trips,
+        hourly,
       },
     });
   } catch (err) {
@@ -137,11 +154,14 @@ const getPassengers = async (req, res, next) => {
 const createDriver = async (req, res, next) => {
   try {
     const { name, phone, email, password } = req.body;
+    if (!password) {
+      return res.status(400).json({ success: false, message: 'Password is required' });
+    }
     const exists = await User.findOne({ phone });
     if (exists) {
       return res.status(400).json({ success: false, message: 'Phone already registered' });
     }
-    const hashed = await bcrypt.hash(password || 'driver123', 12);
+    const hashed = await bcrypt.hash(password, 12);
     const driver = await User.create({
       name,
       phone,

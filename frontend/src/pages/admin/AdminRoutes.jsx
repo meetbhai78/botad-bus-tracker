@@ -32,11 +32,34 @@ export default function AdminRoutes() {
       setMsg('Select at least 2 stops');
       return;
     }
+    
+    setMsg('Calculating route...');
+    const selectedStops = selectedStopIds.map(id => stops.find(s => s._id === id));
+    const coords = selectedStops.map(s => `${s.lng},${s.lat}`).join(';');
+    let polyline = '';
+    let totalDistanceKm = 0;
+    let totalTimeMins = 0;
+    
+    try {
+      const osrmRes = await fetch(`https://router.project-osrm.org/route/v1/driving/${coords}?overview=full`);
+      const osrmData = await osrmRes.json();
+      if (osrmData.code === 'Ok' && osrmData.routes.length > 0) {
+        polyline = osrmData.routes[0].geometry;
+        totalDistanceKm = (osrmData.routes[0].distance / 1000).toFixed(2);
+        totalTimeMins = Math.ceil(osrmData.routes[0].duration / 60);
+      }
+    } catch (err) {
+      console.error('OSRM fetch failed', err);
+    }
+
     try {
       await adminApi.createRoute({
         routeNumber,
         routeName,
         stops: selectedStopIds.map((stopId, i) => ({ stopId, order: i + 1 })),
+        polyline,
+        totalDistance: parseFloat(totalDistanceKm) || undefined,
+        totalTime: parseInt(totalTimeMins) || undefined,
       });
       setMsg('Route created');
       setRouteNumber('');

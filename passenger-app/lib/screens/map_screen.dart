@@ -396,7 +396,7 @@ class _MapScreenState extends State<MapScreen> {
       options: MapOptions(initialCenter: _center, initialZoom: 14.0),
       children: [
         TileLayer(
-          urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=d39cWWFDlw1ibSbMysvD',
+          urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=$maptilerKey',
           userAgentPackageName: 'com.botad.passenger',
         ),
         if (_selectedRoutePolyline.isNotEmpty)

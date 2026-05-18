@@ -60,20 +60,20 @@ initSocket(io);
 
 const PORT = process.env.PORT || 5000;
 
-connectDB()
-  .then(() => {
-    startBroadcast(io);
-    server.listen(PORT, () => {
-      console.log(`Botad Bus Tracker API running on port ${PORT}`);
-      console.log(`Health check: http://localhost:${PORT}/health`);
+if (process.env.NODE_ENV !== 'test') {
+  connectDB()
+    .then(() => {
+      startBroadcast(io);
+      server.listen(PORT, () => {
+        console.log(`Botad Bus Tracker API running on port ${PORT}`);
+        console.log(`Health check: http://localhost:${PORT}/health`);
+      });
+    })
+    .catch((err) => {
+      console.error('\n*** MongoDB connection failed ***');
+      console.error(err.message);
+      process.exit(1);
     });
-  })
-  .catch((err) => {
-    console.error('\n*** MongoDB connection failed ***');
-    console.error(err.message);
-    console.error('\nFix one of these:');
-    console.error('  1) Install MongoDB locally and start the service, OR');
-    console.error('  2) Use MongoDB Atlas — set MONGODB_URI in backend/.env');
-    console.error('     Example: mongodb+srv://user:pass@cluster.mongodb.net/botad-bus-tracker\n');
-    process.exit(1);
-  });
+}
+
+module.exports = app;

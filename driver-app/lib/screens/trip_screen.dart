@@ -69,14 +69,19 @@ class _TripScreenState extends State<TripScreen> {
     setState(() => _isEnding = true);
     final token = await AuthService().getToken();
     try {
+      if (widget.tripId != null) {
+        await http.put(
+          Uri.parse('$apiBaseUrl/api/trips/${widget.tripId}/end'),
+          headers: {'Authorization': 'Bearer $token'},
+        );
+      }
+      
       await http.post(
         Uri.parse('$apiBaseUrl/api/buses/${widget.busId}/release'),
-        headers: {
-          'Authorization': 'Bearer $token',
-        },
+        headers: {'Authorization': 'Bearer $token'},
       );
     } catch (e) {
-      debugPrint('Failed to release bus: $e');
+      debugPrint('Failed to end trip: $e');
     }
     
     if (mounted) {
@@ -113,7 +118,7 @@ class _TripScreenState extends State<TripScreen> {
               children: [
                 TileLayer(
                   // MapTiler Vector/Raster URL using the provided key
-                  urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=d39cWWFDlw1ibSbMysvD',
+                  urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=$maptilerKey',
                   userAgentPackageName: 'com.botad.driver',
                 ),
                 MarkerLayer(
