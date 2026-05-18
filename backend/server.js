@@ -41,10 +41,6 @@ app.use(express.json());
 const path = require('path');
 app.use(express.static(path.join(__dirname, 'public')));
 
-app.get('/', (req, res) => {
-  res.json({ success: true, message: 'Botad Bus Tracker API is running. Check /health for status.' });
-});
-
 app.get('/health', (req, res) => {
   res.json({ success: true, service: 'Botad Bus Tracker API', city: 'Botad, Gujarat' });
 });
@@ -57,6 +53,11 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/stops', stopRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/admin', adminRoutes);
+
+// Catch-all to serve React frontend for any unknown route
+app.get('*', (req, res) => {
+  res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
 
 app.use(errorHandler);
 
