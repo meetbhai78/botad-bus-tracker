@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from 'react-router-dom';
 
 const nav = [
   { to: '/admin', end: true, label: 'Dashboard', icon: '📊' },
+  { to: '/admin/buses', label: 'Buses (Fleet)', icon: '🚌' },
   { to: '/admin/stops', label: 'Bus stops', icon: '📍' },
   { to: '/admin/routes', label: 'Routes', icon: '🛣️' },
   { to: '/admin/timetable', label: 'Timetable', icon: '🕐' },

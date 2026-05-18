@@ -10,6 +10,7 @@ export default function AdminTimetable() {
     label: '',
     direction: '',
   });
+  const [scheduleInput, setScheduleInput] = useState([]);
   const [msg, setMsg] = useState('');
 
   const load = async () => {
@@ -36,10 +37,10 @@ export default function AdminTimetable() {
         departureTime: form.departureTime,
         label: form.label || `Service ${form.departureTime}`,
         direction: form.direction || route.routeName,
-        schedule: (route.stops || []).map((s, i) => ({
-          stopName: s.name,
-          arrivalTime: addMinutes(form.departureTime, (s.estimatedTime ?? i * 8)),
-          order: s.order ?? i + 1,
+        schedule: scheduleInput.map((s, i) => ({
+          stopName: s.stopName,
+          arrivalTime: s.time,
+          order: i + 1,
         })),
       });
       setMsg('Timetable entry added');
@@ -54,43 +55,79 @@ export default function AdminTimetable() {
       <h2 className="text-2xl font-bold text-slate-900">Timetable</h2>
       <p className="text-slate-500 text-sm mt-1">Set departure times per route — passengers see these in the app.</p>
 
-      <form onSubmit={submit} className="mt-6 bg-white rounded-2xl border p-6 grid md:grid-cols-2 gap-4">
-        <select
-          value={form.routeId}
-          onChange={(e) => setForm({ ...form, routeId: e.target.value })}
-          className="border rounded-lg px-3 py-2 md:col-span-2"
-          required
-        >
-          <option value="">Select route</option>
-          {routes.map((r) => (
-            <option key={r._id} value={r._id}>
-              {r.routeNumber} — {r.routeName}
-            </option>
-          ))}
-        </select>
-        <input
-          type="time"
-          value={form.departureTime}
-          onChange={(e) => setForm({ ...form, departureTime: e.target.value })}
-          className="border rounded-lg px-3 py-2"
-          required
-        />
-        <input
-          placeholder="Direction (optional)"
-          value={form.direction}
-          onChange={(e) => setForm({ ...form, direction: e.target.value })}
-          className="border rounded-lg px-3 py-2"
-        />
-        <input
-          placeholder="Label (optional)"
-          value={form.label}
-          onChange={(e) => setForm({ ...form, label: e.target.value })}
-          className="border rounded-lg px-3 py-2 md:col-span-2"
-        />
-        <button type="submit" className="bg-teal-600 text-white px-4 py-2 rounded-lg font-medium md:col-span-2">
+      <form onSubmit={submit} className="mt-6 bg-white rounded-2xl border p-6 flex flex-col gap-4">
+        <div className="grid md:grid-cols-2 gap-4">
+          <select
+            value={form.routeId}
+            onChange={(e) => {
+              setForm({ ...form, routeId: e.target.value });
+              const r = routes.find(x => x._id === e.target.value);
+              if (r) {
+                setScheduleInput(r.stops.map(s => ({ stopName: s.name, time: '' })));
+              } else {
+                setScheduleInput([]);
+              }
+            }}
+            className="border rounded-lg px-3 py-2 md:col-span-2"
+            required
+          >
+            <option value="">Select route</option>
+            {routes.map((r) => (
+              <option key={r._id} value={r._id}>
+                {r.routeNumber} — {r.routeName}
+              </option>
+            ))}
+          </select>
+          <input
+            type="time"
+            value={form.departureTime}
+            onChange={(e) => setForm({ ...form, departureTime: e.target.value })}
+            className="border rounded-lg px-3 py-2"
+            required
+          />
+          <input
+            placeholder="Direction (optional)"
+            value={form.direction}
+            onChange={(e) => setForm({ ...form, direction: e.target.value })}
+            className="border rounded-lg px-3 py-2"
+          />
+          <input
+            placeholder="Label (e.g. Morning Trip)"
+            value={form.label}
+            onChange={(e) => setForm({ ...form, label: e.target.value })}
+            className="border rounded-lg px-3 py-2 md:col-span-2"
+          />
+        </div>
+
+        {scheduleInput.length > 0 && (
+          <div className="mt-4 p-4 border rounded-xl bg-slate-50">
+            <h3 className="font-semibold mb-2">Set Stop Arrival Times</h3>
+            <p className="text-xs text-slate-500 mb-4">Enter exact arrival time for each stop manually.</p>
+            <div className="space-y-2">
+              {scheduleInput.map((s, idx) => (
+                <div key={idx} className="flex items-center justify-between bg-white p-2 rounded border">
+                  <span className="font-medium">{idx + 1}. {s.stopName}</span>
+                  <input
+                    type="time"
+                    value={s.time}
+                    onChange={(e) => {
+                      const newSched = [...scheduleInput];
+                      newSched[idx].time = e.target.value;
+                      setScheduleInput(newSched);
+                    }}
+                    className="border rounded px-2 py-1 text-sm"
+                    required
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <button type="submit" className="bg-teal-600 text-white px-4 py-2 rounded-lg font-medium">
           Add timetable
         </button>
-        {msg && <p className="text-sm text-teal-700 md:col-span-2">{msg}</p>}
+        {msg && <p className="text-sm text-teal-700">{msg}</p>}
       </form>
 
       <div className="mt-8 bg-white rounded-2xl border overflow-hidden">

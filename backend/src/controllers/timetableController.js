@@ -23,15 +23,24 @@ const searchTimetable = async (req, res, next) => {
     }
     const fromRx = new RegExp(from.trim(), 'i');
     const toRx = new RegExp(to.trim(), 'i');
-    const routes = await Route.find({
-      $and: [{ 'stops.name': fromRx }, { 'stops.name': toRx }],
+    
+    // Find all active routes
+    const allRoutes = await Route.find({ isActive: true });
+    
+    // Filter routes where 'from' stop comes before 'to' stop
+    const validRoutes = allRoutes.filter(r => {
+      if (!r.stops) return false;
+      const fromIndex = r.stops.findIndex(s => fromRx.test(s.name));
+      const toIndex = r.stops.findIndex(s => toRx.test(s.name));
+      return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
     });
-    const routeIds = routes.map((r) => r._id);
+
+    const routeIds = validRoutes.map((r) => r._id);
     const timetables = await Timetable.find({ route: { $in: routeIds }, isActive: true })
       .populate('route', 'routeNumber routeName stops')
       .populate('bus', 'busNumber busName')
       .sort('departureTime');
-    res.json({ success: true, routes, timetables });
+    res.json({ success: true, routes: validRoutes, timetables });
   } catch (err) {
     next(err);
   }

@@ -7,6 +7,7 @@ import AdminStops from './pages/admin/AdminStops';
 import AdminRoutes from './pages/admin/AdminRoutes';
 import AdminTimetable from './pages/admin/AdminTimetable';
 import AdminUsers from './pages/admin/AdminUsers';
+import AdminBuses from './pages/admin/AdminBuses';
 
 function PrivateRoute({ children, adminOnly }) {
   const token = localStorage.getItem('token');
@@ -30,6 +31,7 @@ export default function App() {
         }
       >
         <Route index element={<AdminDashboard />} />
+        <Route path="buses" element={<AdminBuses />} />
         <Route path="stops" element={<AdminStops />} />
         <Route path="routes" element={<AdminRoutes />} />
         <Route path="timetable" element={<AdminTimetable />} />

@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = import.meta.env.VITE_BACKEND_URL || 'http://localhost:5000';
+const API_URL = import.meta.env.VITE_BACKEND_URL || '';
 
 const api = axios.create({ baseURL: `${API_URL}/api` });
 
@@ -38,6 +38,8 @@ export const adminApi = {
   dashboard: () => api.get('/admin/dashboard'),
   buses: () => api.get('/admin/buses'),
   createBus: (data) => api.post('/admin/buses', data),
+  updateBus: (id, data) => api.put(`/admin/buses/${id}`, data),
+  deleteBus: (id) => api.delete(`/admin/buses/${id}`),
   drivers: () => api.get('/admin/drivers'),
   createDriver: (data) => api.post('/admin/drivers', data),
   passengers: () => api.get('/admin/passengers'),
