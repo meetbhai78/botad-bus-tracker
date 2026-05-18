@@ -35,34 +35,18 @@ class _TimetableScreenState extends State<TimetableScreen> {
     });
 
     try {
-      final response = await http.get(Uri.parse('$apiBaseUrl/api/routes'));
+      String url = '$apiBaseUrl/api/timetable';
+      if (!viewAll && (_fromController.text.isNotEmpty || _toController.text.isNotEmpty)) {
+        final fromQuery = Uri.encodeComponent(_fromController.text.trim());
+        final toQuery = Uri.encodeComponent(_toController.text.trim());
+        url = '$apiBaseUrl/api/timetable/search?from=$fromQuery&to=$toQuery';
+      }
+
+      final response = await http.get(Uri.parse(url));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        List<dynamic> routes = data['routes'] ?? [];
-
-        if (!viewAll && (_fromController.text.isNotEmpty || _toController.text.isNotEmpty)) {
-          final fromText = _fromController.text.trim().toLowerCase();
-          final toText = _toController.text.trim().toLowerCase();
-          
-          routes = routes.where((r) {
-            final stops = r['stops'] as List<dynamic>? ?? [];
-            int fromIdx = -1;
-            int toIdx = -1;
-            
-            for (int i = 0; i < stops.length; i++) {
-              final stopName = stops[i]['name'].toString().toLowerCase();
-              if (fromText.isNotEmpty && stopName.contains(fromText)) fromIdx = i;
-              if (toText.isNotEmpty && stopName.contains(toText)) toIdx = i;
-            }
-            
-            if (fromText.isNotEmpty && toText.isNotEmpty) return fromIdx != -1 && toIdx != -1 && fromIdx < toIdx;
-            if (fromText.isNotEmpty) return fromIdx != -1;
-            if (toText.isNotEmpty) return toIdx != -1;
-            return false;
-          }).toList();
-        }
-        setState(() => timetableList = routes);
+        setState(() => timetableList = data['timetables'] ?? []);
       } else {
         setState(() => timetableList = []);
       }
@@ -111,7 +95,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                         Expanded(
                           child: OutlinedButton(
                             onPressed: isLoading ? null : () => _fetchRoutes(viewAll: true),
-                            child: const Text('View All Routes'),
+                            child: const Text('View All Timetables'),
                           ),
                         ),
                         const SizedBox(width: 12),
@@ -136,32 +120,36 @@ class _TimetableScreenState extends State<TimetableScreen> {
             const SizedBox(height: 16),
             Expanded(
               child: !hasSearched
-                  ? const Center(child: Text('Search or view all routes', style: TextStyle(color: AppColors.textSecondary)))
+                  ? const Center(child: Text('Search or view all timetables', style: TextStyle(color: AppColors.textSecondary)))
                   : timetableList.isEmpty
-                      ? const Center(child: Text('No routes found.'))
+                      ? const Center(child: Text('No timetables found.'))
                       : ListView.builder(
                           itemCount: timetableList.length,
                           itemBuilder: (context, index) {
-                            final route = timetableList[index];
-                            final stops = route['stops'] as List<dynamic>? ?? [];
-                            final distance = route['totalDistance'] ?? 0;
-                            final time = route['totalTime'] ?? 0;
+                            final tt = timetableList[index];
+                            final route = tt['route'] ?? {};
+                            final schedule = tt['schedule'] as List<dynamic>? ?? [];
+                            final label = tt['label']?.toString() ?? 'Scheduled Trip';
+                            final direction = tt['direction']?.toString() ?? '';
                             
                             return Card(
                               child: ExpansionTile(
-                                leading: const CircleAvatar(child: Icon(Icons.route)),
+                                leading: const CircleAvatar(backgroundColor: Colors.teal, child: Icon(Icons.schedule, color: Colors.white)),
                                 title: Text(
-                                  route['routeName'] ?? 'Unknown Route',
+                                  '${route['routeNumber'] ?? ''} - $label',
                                   style: const TextStyle(fontWeight: FontWeight.w600),
                                 ),
-                                subtitle: Text('${route['routeNumber']} • $distance km • ~${time} mins'),
-                                children: stops
+                                subtitle: Text('Departs at ${tt['departureTime']}' + (direction.isNotEmpty ? ' • Towards $direction' : '')),
+                                children: schedule
                                     .map(
                                       (s) => ListTile(
                                         dense: true,
                                         leading: const Icon(Icons.location_on, size: 16, color: Colors.grey),
-                                        title: Text(s['name']?.toString() ?? ''),
-                                        trailing: Text('+${s['estimatedTime'] ?? 0} min'),
+                                        title: Text(s['stopName']?.toString() ?? ''),
+                                        trailing: Text(
+                                          s['arrivalTime']?.toString() ?? '',
+                                          style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.teal),
+                                        ),
                                       ),
                                     )
                                     .toList(),

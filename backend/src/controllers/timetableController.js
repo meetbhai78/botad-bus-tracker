@@ -24,8 +24,8 @@ const searchTimetable = async (req, res, next) => {
     const fromRx = new RegExp(from.trim(), 'i');
     const toRx = new RegExp(to.trim(), 'i');
     
-    // Find all active routes
-    const allRoutes = await Route.find({ isActive: true });
+    // Find all routes
+    const allRoutes = await Route.find();
     
     // Filter routes where 'from' stop comes before 'to' stop
     const validRoutes = allRoutes.filter(r => {
