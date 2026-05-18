@@ -12,9 +12,9 @@ const getAllBuses = async (req, res, next) => {
     if (from && to) {
       buses = buses.filter((b) => {
         if (!b.route || !b.route.stops) return false;
-        const fromIndex = b.route.stops.findIndex(s => s.name.toLowerCase().includes(from.toLowerCase()));
-        const toIndex = b.route.stops.findIndex(s => s.name.toLowerCase().includes(to.toLowerCase()));
-        return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
+        const fromStop = b.route.stops.find(s => s.name.toLowerCase().includes(from.toLowerCase()));
+        const toStop = b.route.stops.find(s => s.name.toLowerCase().includes(to.toLowerCase()));
+        return fromStop && toStop && fromStop.order < toStop.order;
       });
     }
 
@@ -85,12 +85,14 @@ const updateLocation = async (req, res, next) => {
 
 const updateStatus = async (req, res, next) => {
   try {
-    const bus = await Bus.findByIdAndUpdate(
-      req.params.id,
-      { status: req.body.status, isLive: req.body.status === 'active' },
-      { new: true }
-    );
+    const bus = await Bus.findById(req.params.id);
     if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
+    if (req.user.role !== 'admin' && bus.driver?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not your bus' });
+    }
+    bus.status = req.body.status;
+    bus.isLive = req.body.status === 'active';
+    await bus.save();
     res.json({ success: true, bus });
   } catch (err) {
     next(err);
@@ -132,6 +134,11 @@ const releaseBus = async (req, res, next) => {
 
 const getLocationHistory = async (req, res, next) => {
   try {
+    const bus = await Bus.findById(req.params.id);
+    if (!bus) return res.status(404).json({ success: false, message: 'Bus not found' });
+    if (req.user.role !== 'admin' && bus.driver?.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Not your bus' });
+    }
     const start = new Date();
     start.setHours(0, 0, 0, 0);
     const trips = await Trip.find({

@@ -27,12 +27,12 @@ const searchTimetable = async (req, res, next) => {
     // Find all routes
     const allRoutes = await Route.find();
     
-    // Filter routes where 'from' stop comes before 'to' stop
+    // Filter routes where 'from' stop comes before 'to' stop based on 'order'
     const validRoutes = allRoutes.filter(r => {
       if (!r.stops) return false;
-      const fromIndex = r.stops.findIndex(s => fromRx.test(s.name));
-      const toIndex = r.stops.findIndex(s => toRx.test(s.name));
-      return fromIndex !== -1 && toIndex !== -1 && fromIndex < toIndex;
+      const fromStop = r.stops.find(s => fromRx.test(s.name));
+      const toStop = r.stops.find(s => toRx.test(s.name));
+      return fromStop && toStop && fromStop.order < toStop.order;
     });
 
     const routeIds = validRoutes.map((r) => r._id);
