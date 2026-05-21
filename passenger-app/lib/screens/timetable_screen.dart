@@ -3,6 +3,8 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants.dart';
 import '../theme/app_colors.dart';
+import '../widgets/stop_search_sheet.dart';
+
 class TimetableScreen extends StatefulWidget {
   const TimetableScreen({super.key, this.initialFromStop});
 
@@ -72,21 +74,47 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 padding: const EdgeInsets.all(16.0),
                 child: Column(
                   children: [
-                    TextField(
-                      controller: _fromController,
-                      decoration: const InputDecoration(
-                        labelText: 'From stop (optional)',
-                        prefixIcon: Icon(Icons.trip_origin, color: AppColors.primary),
-                        border: OutlineInputBorder(),
+                    InkWell(
+                      onTap: () async {
+                        final stop = await showStopSearchSheet(context, title: 'Select from stop');
+                        if (stop != null) {
+                          setState(() => _fromController.text = stop.name);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'From stop (optional)',
+                          prefixIcon: Icon(Icons.trip_origin, color: AppColors.primary),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _fromController.text.isEmpty ? 'Tap to select' : _fromController.text,
+                          style: TextStyle(
+                            color: _fromController.text.isEmpty ? Colors.grey : AppColors.textPrimary,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 12),
-                    TextField(
-                      controller: _toController,
-                      decoration: const InputDecoration(
-                        labelText: 'To stop (optional)',
-                        prefixIcon: Icon(Icons.place, color: AppColors.accent),
-                        border: OutlineInputBorder(),
+                    InkWell(
+                      onTap: () async {
+                        final stop = await showStopSearchSheet(context, title: 'Select to stop');
+                        if (stop != null) {
+                          setState(() => _toController.text = stop.name);
+                        }
+                      },
+                      child: InputDecorator(
+                        decoration: const InputDecoration(
+                          labelText: 'To stop (optional)',
+                          prefixIcon: Icon(Icons.place, color: AppColors.accent),
+                          border: OutlineInputBorder(),
+                        ),
+                        child: Text(
+                          _toController.text.isEmpty ? 'Tap to select' : _toController.text,
+                          style: TextStyle(
+                            color: _toController.text.isEmpty ? Colors.grey : AppColors.textPrimary,
+                          ),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 16),
