@@ -22,7 +22,7 @@ class BotadPassengerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Botad Bus Tracker',
+      title: 'Botad-ct',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
       home: FutureBuilder<bool>(
