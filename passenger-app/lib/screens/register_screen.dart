@@ -60,9 +60,37 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Container(
+                height: 180,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  image: const DecorationImage(
+                    image: NetworkImage('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=800&auto=format&fit=crop'),
+                    fit: BoxFit.cover,
+                  ),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
+                  ),
+                  alignment: Alignment.bottomLeft,
+                  padding: const EdgeInsets.all(20),
+                  child: const Text(
+                    'Join Botad Bus Tracker',
+                    style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ),
               const Text(
                 'Register as passenger for Botad city bus.',
-                style: TextStyle(color: AppColors.textSecondary),
+                style: TextStyle(color: AppColors.textSecondary, fontSize: 16),
               ),
               const SizedBox(height: 20),
               TextField(

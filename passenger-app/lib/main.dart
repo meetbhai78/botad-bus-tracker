@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'screens/app_shell.dart';
+import 'screens/login_screen.dart';
+import 'services/auth_service.dart';
 import 'theme/app_theme.dart';
 
 void main() {
@@ -23,7 +25,18 @@ class BotadPassengerApp extends StatelessWidget {
       title: 'Botad Bus Tracker',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.light,
-      home: const AppShell(),
+      home: FutureBuilder<bool>(
+        future: AuthService.isLoggedIn(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          if (snapshot.data == true) {
+            return const AppShell();
+          }
+          return const LoginScreen();
+        },
+      ),
     );
   }
 }

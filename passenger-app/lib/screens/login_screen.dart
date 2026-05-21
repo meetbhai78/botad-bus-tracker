@@ -52,15 +52,43 @@ class _LoginScreenState extends State<LoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              const SizedBox(height: 24),
-              const Center(child: BrandLogo()),
-              const SizedBox(height: 32),
+              Container(
+                height: 200,
+                margin: const EdgeInsets.only(bottom: 24),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(20),
+                  image: const DecorationImage(
+                    image: NetworkImage('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=800&auto=format&fit=crop'),
+                    fit: BoxFit.cover,
+                  ),
+                  boxShadow: const [BoxShadow(color: Colors.black26, blurRadius: 10, offset: Offset(0, 4))],
+                ),
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(20),
+                    gradient: LinearGradient(
+                      colors: [Colors.black.withValues(alpha: 0.6), Colors.transparent],
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                    ),
+                  ),
+                  alignment: Alignment.bottomCenter,
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
+                    children: [
+                      const BrandLogo(),
+                      const SizedBox(width: 12),
+                      const Text('Botad Smart Bus', style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                ),
+              ),
               Text(
                 'Welcome back',
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 8),
-              const Text('Sign in to book tickets and view your trips.', style: TextStyle(color: AppColors.textSecondary)),
+              const Text('Sign in to track buses and view your trips.', style: TextStyle(color: AppColors.textSecondary)),
               const SizedBox(height: 24),
               TextField(
                 controller: _phone,
@@ -100,16 +128,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 child: const Text('New here? Create account'),
               ),
-              if (!widget.returnToApp) ...[
-                const SizedBox(height: 8),
-                TextButton(
-                  onPressed: () => Navigator.pushReplacement(
-                    context,
-                    MaterialPageRoute(builder: (_) => const AppShell()),
-                  ),
-                  child: const Text('Continue without account'),
-                ),
-              ],
             ],
           ),
         ),

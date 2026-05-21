@@ -13,77 +13,114 @@ class HomeScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SafeArea(
+      top: false,
       child: CustomScrollView(
         slivers: [
           SliverToBoxAdapter(
+            child: Container(
+              height: 280,
+              decoration: const BoxDecoration(
+                image: DecorationImage(
+                  image: NetworkImage('https://images.unsplash.com/photo-1570125909232-eb263c188f7e?q=80&w=2000&auto=format&fit=crop'),
+                  fit: BoxFit.cover,
+                ),
+              ),
+              child: Container(
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [
+                      Colors.black.withValues(alpha: 0.7),
+                      Colors.transparent,
+                      AppColors.background,
+                    ],
+                    begin: Alignment.topCenter,
+                    end: Alignment.bottomCenter,
+                  ),
+                ),
+                padding: const EdgeInsets.fromLTRB(20, 60, 20, 0),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const BrandLogo(),
+                    const Spacer(),
+                    const Text(
+                      'Welcome to',
+                      style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.w600),
+                    ),
+                    Text(
+                      'Botad Smart Bus',
+                      style: Theme.of(context).textTheme.headlineMedium?.copyWith(
+                            fontWeight: FontWeight.w900,
+                            color: Colors.white,
+                          ),
+                    ),
+                    const SizedBox(height: 8),
+                    const Text(
+                      'Search routes, view timetables, and track buses live.',
+                      style: TextStyle(color: Colors.white70, height: 1.4, fontSize: 14),
+                    ),
+                    const SizedBox(height: 30),
+                  ],
+                ),
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const BrandLogo(),
-                  const SizedBox(height: 28),
-                  Text(
-                    'Botad city bus',
-                    style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary,
-                        ),
-                  ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Stop choose karein → route ki bus dekhein → live location track karein.',
-                    style: TextStyle(color: AppColors.textSecondary, height: 1.4),
-                  ),
-                  const SizedBox(height: 20),
-                  _FindBusBanner(onTap: () => onNavigateTab(1)),
-                  const SizedBox(height: 24),
-                  const Text(
-                    'More options',
-                    style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.textPrimary),
-                  ),
-                  const SizedBox(height: 12),
-                ],
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+              child: _FindBusBanner(onTap: () => onNavigateTab(1)),
+            ),
+          ),
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 20),
+              child: const Text(
+                'Explore Features',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppColors.textPrimary),
               ),
             ),
           ),
           SliverPadding(
-            padding: const EdgeInsets.symmetric(horizontal: 20),
+            padding: const EdgeInsets.fromLTRB(20, 16, 20, 20),
             sliver: SliverGrid(
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 2,
-                mainAxisSpacing: 12,
-                crossAxisSpacing: 12,
-                childAspectRatio: 1.05,
+                mainAxisSpacing: 16,
+                crossAxisSpacing: 16,
+                childAspectRatio: 0.9,
               ),
               delegate: SliverChildListDelegate([
                 FeatureCard(
                   icon: Icons.search_rounded,
-                  title: 'Find bus',
-                  subtitle: 'Stops & route search',
+                  title: 'Find Bus',
+                  subtitle: 'Search routes & stops',
                   color: AppColors.primary,
+                  bgImageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=800&auto=format&fit=crop',
                   onTap: () => onNavigateTab(1),
                 ),
                 FeatureCard(
-                  icon: Icons.near_me_rounded,
-                  title: 'All stops',
-                  subtitle: 'Browse & search list',
-                  color: AppColors.accent,
-                  onTap: () => _push(context, const NearbyStationsScreen()),
+                  icon: Icons.map_rounded,
+                  title: 'Live Map',
+                  subtitle: 'Track active buses',
+                  color: const Color(0xFFEC4899),
+                  bgImageUrl: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=800&auto=format&fit=crop',
+                  onTap: () => onNavigateTab(2),
                 ),
                 FeatureCard(
                   icon: Icons.schedule_rounded,
                   title: 'Timetable',
-                  subtitle: 'Admin schedule',
+                  subtitle: 'View schedules',
                   color: const Color(0xFF6366F1),
+                  bgImageUrl: 'https://images.unsplash.com/photo-1501139083538-0139583c060f?q=80&w=800&auto=format&fit=crop',
                   onTap: () => _push(context, const TimetableScreen()),
                 ),
                 FeatureCard(
-                  icon: Icons.map_rounded,
-                  title: 'Live map',
-                  subtitle: 'All active buses',
-                  color: const Color(0xFFEC4899),
-                  onTap: () => onNavigateTab(2),
+                  icon: Icons.near_me_rounded,
+                  title: 'All Stops',
+                  subtitle: 'Browse locations',
+                  color: AppColors.accent,
+                  bgImageUrl: 'https://images.unsplash.com/photo-1515155075601-23009d0cb6d4?q=80&w=800&auto=format&fit=crop',
+                  onTap: () => _push(context, const NearbyStationsScreen()),
                 ),
               ]),
             ),
@@ -107,17 +144,31 @@ class _FindBusBanner extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Material(
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
+      elevation: 6,
+      shadowColor: AppColors.primary.withValues(alpha: 0.3),
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            gradient: const LinearGradient(colors: [AppColors.primary, AppColors.primaryDark]),
+            borderRadius: BorderRadius.circular(20),
+            gradient: const LinearGradient(
+              colors: [AppColors.primary, AppColors.primaryDark],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+            image: DecorationImage(
+              image: const NetworkImage('https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?q=80&w=1000&auto=format&fit=crop'),
+              fit: BoxFit.cover,
+              colorFilter: ColorFilter.mode(
+                AppColors.primaryDark.withValues(alpha: 0.85),
+                BlendMode.srcOver,
+              ),
+            ),
           ),
           child: Padding(
-            padding: const EdgeInsets.all(18),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 24),
             child: Row(
               children: [
                 Expanded(
@@ -125,18 +176,28 @@ class _FindBusBanner extends StatelessWidget {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Find your bus',
-                        style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.w700),
+                        'Where to?',
+                        style: TextStyle(color: Colors.white, fontSize: 22, fontWeight: FontWeight.w900),
                       ),
-                      const SizedBox(height: 4),
+                      const SizedBox(height: 6),
                       Text(
-                        'Tap stop → search → track live',
-                        style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 13),
+                        'Tap to search buses for your route',
+                        style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14),
                       ),
                     ],
                   ),
                 ),
-                const Icon(Icons.arrow_forward_rounded, color: Colors.white, size: 28),
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(color: Colors.black26, blurRadius: 8, offset: const Offset(0, 4)),
+                    ],
+                  ),
+                  child: const Icon(Icons.search_rounded, color: AppColors.primary, size: 28),
+                ),
               ],
             ),
           ),

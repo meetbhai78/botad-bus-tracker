@@ -9,6 +9,7 @@ class FeatureCard extends StatelessWidget {
     required this.subtitle,
     required this.color,
     required this.onTap,
+    this.bgImageUrl,
   });
 
   final IconData icon;
@@ -16,19 +17,32 @@ class FeatureCard extends StatelessWidget {
   final String subtitle;
   final Color color;
   final VoidCallback onTap;
+  final String? bgImageUrl;
 
   @override
   Widget build(BuildContext context) {
     return Material(
       color: AppColors.surface,
-      borderRadius: BorderRadius.circular(16),
+      borderRadius: BorderRadius.circular(20),
+      elevation: 4,
+      shadowColor: Colors.black12,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(20),
         child: Ink(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.border),
+            borderRadius: BorderRadius.circular(20),
+            color: bgImageUrl == null ? color.withValues(alpha: 0.1) : Colors.transparent,
+            image: bgImageUrl != null
+                ? DecorationImage(
+                    image: NetworkImage(bgImageUrl!),
+                    fit: BoxFit.cover,
+                    colorFilter: ColorFilter.mode(
+                      Colors.black.withValues(alpha: 0.45),
+                      BlendMode.darken,
+                    ),
+                  )
+                : null,
           ),
           child: Padding(
             padding: const EdgeInsets.all(16),
@@ -38,24 +52,34 @@ class FeatureCard extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.all(10),
                   decoration: BoxDecoration(
-                    color: color.withValues(alpha: 0.12),
+                    color: bgImageUrl != null
+                        ? Colors.white.withValues(alpha: 0.25)
+                        : color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
+                    border: bgImageUrl != null
+                        ? Border.all(color: Colors.white.withValues(alpha: 0.3), width: 1)
+                        : null,
                   ),
-                  child: Icon(icon, color: color, size: 26),
+                  child: Icon(icon, color: bgImageUrl != null ? Colors.white : color, size: 28),
                 ),
                 const Spacer(),
                 Text(
                   title,
-                  style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.textPrimary,
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: bgImageUrl != null ? Colors.white : AppColors.textPrimary,
+                    shadows: bgImageUrl != null ? [const Shadow(color: Colors.black87, blurRadius: 4)] : [],
                   ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   subtitle,
-                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: bgImageUrl != null ? Colors.white.withValues(alpha: 0.9) : AppColors.textSecondary,
+                    shadows: bgImageUrl != null ? [const Shadow(color: Colors.black87, blurRadius: 3)] : [],
+                  ),
                 ),
               ],
             ),
