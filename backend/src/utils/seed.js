@@ -50,13 +50,13 @@ async function seed() {
   await Bus.deleteMany({});
   await Timetable.deleteMany({});
 
-  const adminPass = await bcrypt.hash('admin123', 12);
+  const adminPass = await bcrypt.hash('BeMeet@2007', 12);
   const driverPass = await bcrypt.hash('driver123', 12);
   const passengerPass = await bcrypt.hash('pass123', 12);
 
   await User.create({
     name: 'Botad Admin',
-    phone: '9999999999',
+    phone: '7990431779',
     password: adminPass,
     role: 'admin',
     email: 'admin@botadbus.local',
@@ -130,7 +130,7 @@ async function seed() {
   }
 
   console.log('Seed complete!');
-  console.log('Admin:    phone 9999999999 / admin123');
+  console.log('Admin:    phone 7990431779 / BeMeet@2007');
   console.log('Driver:   phone 9876543210 / driver123');
   console.log('Passenger: phone 9123456789 / pass123');
 
