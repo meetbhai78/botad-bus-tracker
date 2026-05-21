@@ -3,6 +3,7 @@ import 'home_screen.dart';
 import 'map_screen.dart';
 import 'find_bus_screen.dart';
 import 'more_screen.dart';
+import '../services/update_service.dart';
 
 class AppShell extends StatefulWidget {
   const AppShell({super.key});
@@ -13,6 +14,14 @@ class AppShell extends StatefulWidget {
 
 class _AppShellState extends State<AppShell> {
   int _index = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdate(context);
+    });
+  }
 
   void goToTab(int index) => setState(() => _index = index);
 

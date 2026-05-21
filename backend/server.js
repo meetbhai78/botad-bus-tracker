@@ -19,6 +19,7 @@ const ticketRoutes = require('./src/routes/tickets');
 const adminRoutes = require('./src/routes/admin');
 const stopRoutes = require('./src/routes/stops');
 const timetableRoutes = require('./src/routes/timetable');
+const configRoutes = require('./src/routes/config');
 
 const app = express();
 const server = http.createServer(app);
@@ -53,6 +54,7 @@ app.use('/api/tickets', ticketRoutes);
 app.use('/api/stops', stopRoutes);
 app.use('/api/timetable', timetableRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/config', configRoutes);
 
 // Catch-all to serve React frontend for any unknown route
 app.get('*', (req, res) => {
