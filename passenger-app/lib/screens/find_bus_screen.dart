@@ -22,6 +22,7 @@ class _FindBusScreenState extends State<FindBusScreen> {
   late BusStop? _from = widget.initialFrom;
   BusStop? _to;
   List<dynamic> _buses = [];
+  List<dynamic> _allTimetables = [];
   bool _loading = false;
   bool _searched = false;
 
@@ -74,14 +75,32 @@ class _FindBusScreenState extends State<FindBusScreen> {
     try {
       final fromQ = Uri.encodeComponent(_from!.name);
       final toQ = Uri.encodeComponent(_to!.name);
-      final response = await http.get(Uri.parse('$apiBaseUrl/api/buses?from=$fromQ&to=$toQ'));
+      
+      // Fetch both buses and all timetables parallelly for lightning fast loading
+      final responses = await Future.wait([
+        http.get(Uri.parse('$apiBaseUrl/api/buses?from=$fromQ&to=$toQ')),
+        http.get(Uri.parse('$apiBaseUrl/api/timetable')),
+      ]);
+      
       if (!mounted) return;
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() => _buses = data['buses'] ?? []);
-      } else {
-        setState(() => _buses = []);
+      
+      List<dynamic> fetchedBuses = [];
+      List<dynamic> fetchedTimetables = [];
+      
+      if (responses[0].statusCode == 200) {
+        final data = jsonDecode(responses[0].body);
+        fetchedBuses = data['buses'] ?? [];
       }
+      
+      if (responses[1].statusCode == 200) {
+        final data = jsonDecode(responses[1].body);
+        fetchedTimetables = data['timetables'] ?? [];
+      }
+      
+      setState(() {
+        _buses = fetchedBuses;
+        _allTimetables = fetchedTimetables;
+      });
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -221,6 +240,19 @@ class _FindBusScreenState extends State<FindBusScreen> {
         final bus = _buses[i] as Map<String, dynamic>;
         final isLive = bus['isLive'] == true;
         final route = bus['route'];
+        final routeId = route?['_id']?.toString();
+        final busId = bus['_id']?.toString();
+
+        // Filter timetables that match this bus and this route
+        final List<dynamic> busTimetables = _allTimetables.where((tt) {
+          final ttBus = tt['bus'];
+          final ttRoute = tt['route'];
+          if (ttBus == null || ttRoute == null) return false;
+          final ttBusId = ttBus is Map ? ttBus['_id']?.toString() : ttBus.toString();
+          final ttRouteId = ttRoute is Map ? ttRoute['_id']?.toString() : ttRoute.toString();
+          return ttBusId == busId && ttRouteId == routeId;
+        }).toList();
+
         return Card(
           child: InkWell(
             onTap: () => _openBus(bus),
@@ -252,7 +284,86 @@ class _FindBusScreenState extends State<FindBusScreen> {
                           route?['routeName']?.toString() ?? 'Route',
                           style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
                         ),
-                        const SizedBox(height: 6),
+                        
+                        // Scheduled Timings Row
+                        if (busTimetables.isNotEmpty) ...[
+                          const SizedBox(height: 10),
+                          const Text(
+                            'SCHEDULED TIMINGS:',
+                            style: TextStyle(
+                              fontSize: 10,
+                              fontWeight: FontWeight.w900,
+                              color: AppColors.accent,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                          const SizedBox(height: 4),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 6,
+                            children: busTimetables.map((tt) {
+                              final depTime = tt['departureTime']?.toString() ?? '00:00';
+                              
+                              // Find arrival time at our Boarding stop and Destination stop
+                              String? stopArrivalTime;
+                              String? destArrivalTime;
+                              if (tt['schedule'] != null && tt['schedule'] is List) {
+                                for (var s in tt['schedule']) {
+                                  final sName = s['stopName']?.toString() ?? '';
+                                  if (sName.toLowerCase().contains(_from!.name.toLowerCase())) {
+                                    stopArrivalTime = s['arrivalTime']?.toString();
+                                  }
+                                  if (sName.toLowerCase().contains(_to!.name.toLowerCase())) {
+                                    destArrivalTime = s['arrivalTime']?.toString();
+                                  }
+                                }
+                              }
+                              
+                              final displayTime = stopArrivalTime ?? depTime;
+                              final tooltipText = destArrivalTime != null ? 'Reaches ${_to!.name} at $destArrivalTime' : 'Route Scheduled';
+                              
+                              return Tooltip(
+                                message: tooltipText,
+                                child: Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  decoration: BoxDecoration(
+                                    color: AppColors.primary.withValues(alpha: 0.08),
+                                    borderRadius: BorderRadius.circular(8),
+                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
+                                  ),
+                                  child: Row(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                      const Icon(Icons.access_time_filled_rounded, size: 12, color: AppColors.primary),
+                                      const SizedBox(width: 4),
+                                      Text(
+                                        displayTime,
+                                        style: const TextStyle(
+                                          fontSize: 12,
+                                          fontWeight: FontWeight.w800,
+                                          color: AppColors.primary,
+                                        ),
+                                      ),
+                                      if (destArrivalTime != null) ...[
+                                        const SizedBox(width: 4),
+                                        Text(
+                                          '(➔ $destArrivalTime)',
+                                          style: TextStyle(
+                                            fontSize: 10,
+                                            fontWeight: FontWeight.w500,
+                                            color: AppColors.primary.withValues(alpha: 0.7),
+                                          ),
+                                        ),
+                                      ],
+                                    ],
+                                  ),
+                                ),
+                              );
+                            }).toList(),
+                          ),
+                        ],
+                        
+                        const SizedBox(height: 10),
                         Row(
                           children: [
                             _Chip(
