@@ -108,7 +108,7 @@ class _TicketScreenState extends State<TicketScreen> {
               child: Column(
                 children: [
                   DropdownButtonFormField<String>(
-                    initialValue: fromStop,
+                    value: fromStop,
                     decoration: const InputDecoration(
                       labelText: 'From',
                       border: OutlineInputBorder(),
@@ -120,7 +120,7 @@ class _TicketScreenState extends State<TicketScreen> {
                   ),
                   const SizedBox(height: 12),
                   DropdownButtonFormField<String>(
-                    initialValue: toStop,
+                    value: toStop,
                     decoration: const InputDecoration(
                       labelText: 'To',
                       border: OutlineInputBorder(),

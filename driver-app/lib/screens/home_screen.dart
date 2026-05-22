@@ -90,6 +90,8 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     }
 
+    final currentBus = assignedBus;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Driver Home')),
       body: _isLoading
@@ -104,14 +106,14 @@ class _HomeScreenState extends State<HomeScreen> {
                     child: ListTile(
                       leading: const CircleAvatar(child: Icon(Icons.person)),
                       title: Text(user?['name'] ?? 'Driver', style: const TextStyle(fontWeight: FontWeight.bold)),
-                      subtitle: Text(assignedBus != null 
-                          ? 'Assigned: ${assignedBus['busNumber']} · ${assignedBus['route']?['routeName'] ?? 'Unknown'}'
+                      subtitle: Text(currentBus != null 
+                          ? 'Assigned: ${currentBus['busNumber']} · ${currentBus['route']?['routeName'] ?? 'Unknown'}'
                           : 'No bus assigned currently'),
                     ),
                   ),
                   const SizedBox(height: 16),
                   
-                  if (assignedBus != null) ...[
+                  if (currentBus != null) ...[
                     FilledButton.icon(
                       onPressed: () async {
                         final token = await AuthService().getToken();
@@ -119,7 +121,7 @@ class _HomeScreenState extends State<HomeScreen> {
                           final res = await http.post(
                             Uri.parse('$apiBaseUrl/api/trips/start'),
                             headers: {'Authorization': 'Bearer $token', 'Content-Type': 'application/json'},
-                            body: jsonEncode({'busId': assignedBus['_id'], 'routeId': assignedBus['route']?['_id']})
+                            body: jsonEncode({'busId': currentBus['_id'], 'routeId': currentBus['route']?['_id']})
                           );
                           final data = jsonDecode(res.body);
                           if (res.statusCode == 200 || res.statusCode == 201) {
@@ -128,8 +130,8 @@ class _HomeScreenState extends State<HomeScreen> {
                               context,
                               MaterialPageRoute(
                                 builder: (_) => TripScreen(
-                                  busId: assignedBus['_id'],
-                                  routeName: assignedBus['route']?['routeName'] ?? 'Unknown Route',
+                                  busId: currentBus['_id'],
+                                  routeName: currentBus['route']?['routeName'] ?? 'Unknown Route',
                                   tripId: data['trip']['_id'],
                                 ),
                               ),
