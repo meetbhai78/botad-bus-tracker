@@ -75,7 +75,7 @@ function showModal(id) {
     // Initialize map if not done yet
     if (!routeMap) {
       routeMap = L.map('routeMap').setView([22.1647, 71.6661], 14); // Botad center
-      L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=YOUR_MAPTILER_KEY', {
+      L.tileLayer('https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=d39cWWFDlw1ibSbMysvD', {
         attribution: 'MapTiler'
       }).addTo(routeMap);
       

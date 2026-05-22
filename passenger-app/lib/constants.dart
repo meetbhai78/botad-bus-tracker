@@ -4,7 +4,7 @@ const String apiBaseUrl = String.fromEnvironment('API_BASE_URL', defaultValue: '
 const String socketUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'https://botad-bus-tracker.onrender.com');
 
 // Use --dart-define=MAPTILER_KEY=...
-const String maptilerKey = String.fromEnvironment('MAPTILER_KEY', defaultValue: 'YOUR_MAPTILER_KEY');
+const String maptilerKey = String.fromEnvironment('MAPTILER_KEY', defaultValue: 'd39cWWFDlw1ibSbMysvD');
 
 String get mapTileUrl {
   if (maptilerKey == 'YOUR_MAPTILER_KEY' || maptilerKey.trim().isEmpty || maptilerKey.contains('YOUR')) {
