@@ -1,39 +1,47 @@
-const axios = require('axios');
 const { haversineKm, estimateEtaMinutes } = require('../utils/distance');
 
-const ETA_SERVICE_URL = process.env.ETA_SERVICE_URL || 'http://localhost:8000';
-
 /**
- * Predicts ETA using AI microservice, with fallback to simple math.
+ * Predicts ETA using FastAPI `ai-eta` service (`POST /predict-eta`), with fallback to simple math.
+ * Contract must match `ai-eta/main.py` ETARequest.
  */
 async function predictEta({ busLat, busLng, stopLat, stopLng, speed, hour }) {
   const dist = haversineKm(busLat, busLng, stopLat, stopLng);
-  
-  if (process.env.ETA_SERVICE_URL) {
+  const baseUrl = (process.env.ETA_SERVICE_URL || '').replace(/\/$/, '');
+
+  if (baseUrl) {
     try {
-      const response = await axios.post(`${ETA_SERVICE_URL}/predict-eta`, {
-        distance_km: dist,
-        speed_kmh: speed,
-        hour: hour,
-        weather: 'clear', // Default weather
+      const res = await fetch(`${baseUrl}/predict-eta`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          bus_lat: busLat,
+          bus_lng: busLng,
+          stop_lat: stopLat,
+          stop_lng: stopLng,
+          current_speed: Math.max(Number(speed) || 0, 15),
+          hour_of_day: hour,
+          day_of_week: new Date().getDay(),
+        }),
       });
-      if (response.data && response.data.eta_minutes !== undefined) {
-        return {
-          distanceKm: Math.round(dist * 100) / 100,
-          etaMinutes: Math.round(response.data.eta_minutes),
-          source: 'ai'
-        };
+      if (res.ok) {
+        const data = await res.json();
+        if (data && data.eta_minutes !== undefined) {
+          return {
+            distanceKm: typeof data.distance_km === 'number' ? data.distance_km : Math.round(dist * 100) / 100,
+            etaMinutes: Math.round(Number(data.eta_minutes)),
+            source: 'ai',
+          };
+        }
       }
-    } catch (error) {
-      console.warn(`[ETA Service] AI ETA failed, falling back to math: ${error.message}`);
+    } catch (err) {
+      console.warn(`[ETA Service] AI ETA failed, falling back to math: ${err.message}`);
     }
   }
 
-  // Fallback
   return {
     distanceKm: Math.round(dist * 100) / 100,
     etaMinutes: estimateEtaMinutes(dist, speed, hour),
-    source: 'math'
+    source: 'math',
   };
 }
 

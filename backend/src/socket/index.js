@@ -63,7 +63,7 @@ function initSocket(io) {
       if (!socket.user || socket.user.role !== 'driver') return;
 
       try {
-        const bus = await Bus.findById(busId);
+        const bus = await Bus.findById(busId).populate('route');
         if (!bus || bus.driver?.toString() !== socket.user._id.toString()) return;
 
         const now = Date.now();
@@ -88,9 +88,8 @@ function initSocket(io) {
           }
 
           if (bus.route) {
-            const Route = require('../models/Route');
             const { predictEta } = require('../services/etaService');
-            const route = await Route.findById(bus.route);
+            const route = bus.route;
             
             if (route && route.stops && route.stops.length > 0) {
               const hour = updatedAt.getHours();
@@ -128,11 +127,13 @@ function initSocket(io) {
         const payload = {
           busId,
           busName: bus.busName,
+          busNumber: bus.busNumber,
           lat,
           lng,
           speed,
           heading,
-          routeId: bus.route,
+          routeId: bus.route?._id || bus.route,
+          route: bus.route,
           eta,
           seatsAvailable: (bus.capacity || 50) - tripMapCount,
           updatedAt,

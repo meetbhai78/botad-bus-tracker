@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const QRCode = require('qrcode');
 const Ticket = require('../models/Ticket');
 const Trip = require('../models/Trip');
@@ -13,23 +14,25 @@ const bookTicket = async (req, res, next) => {
       return res.status(400).json({ success: false, message: 'No active trip' });
     }
     const expiresAt = new Date(Date.now() + QR_EXPIRE_HOURS * 60 * 60 * 1000);
-    const payload = JSON.stringify({
-      passengerId: req.user._id,
-      tripId,
-      fromStop,
-      toStop,
-      expiresAt,
-    });
-    const qrCode = await QRCode.toDataURL(payload);
     const ticket = await Ticket.create({
       passenger: req.user._id,
       trip: tripId,
       fromStop,
       toStop,
       price: TICKET_PRICE,
-      qrCode,
+      qrCode: '',
       expiresAt,
     });
+    const payload = JSON.stringify({
+      ticketId: ticket._id.toString(),
+      passengerId: req.user._id.toString(),
+      tripId: tripId.toString(),
+      fromStop,
+      toStop,
+      expiresAt: expiresAt.toISOString(),
+    });
+    ticket.qrCode = await QRCode.toDataURL(payload);
+    await ticket.save();
     trip.passengersCount += 1;
     await trip.save();
     res.status(201).json({ success: true, ticket });
@@ -51,8 +54,33 @@ const getMyTickets = async (req, res, next) => {
 
 const verifyTicket = async (req, res, next) => {
   try {
-    const { ticketId } = req.body;
-    const ticket = await Ticket.findById(ticketId);
+    const { ticketId, qrCode } = req.body;
+
+    if (!ticketId && (qrCode == null || !String(qrCode).trim())) {
+      return res.status(400).json({ success: false, message: 'ticketId or qrCode required' });
+    }
+
+    let ticket = null;
+    if (ticketId && mongoose.Types.ObjectId.isValid(String(ticketId))) {
+      ticket = await Ticket.findById(ticketId);
+    } else if (qrCode != null && String(qrCode).trim()) {
+      const raw = String(qrCode).trim();
+      try {
+        const parsed = JSON.parse(raw);
+        if (parsed.ticketId && mongoose.Types.ObjectId.isValid(String(parsed.ticketId))) {
+          ticket = await Ticket.findById(parsed.ticketId);
+        }
+      } catch {
+        /* not JSON */
+      }
+      if (!ticket && mongoose.Types.ObjectId.isValid(raw) && raw.length === 24) {
+        ticket = await Ticket.findById(raw);
+      }
+      if (!ticket) {
+        ticket = await Ticket.findOne({ qrCode: raw });
+      }
+    }
+
     if (!ticket) return res.status(404).json({ success: false, message: 'Ticket not found' });
     if (ticket.status !== 'active') {
       return res.status(400).json({ success: false, message: `Ticket ${ticket.status}` });
@@ -89,20 +117,23 @@ const bookTicketSimple = async (req, res, next) => {
   try {
     const { fromStop, toStop, price } = req.body;
     const expiresAt = new Date(Date.now() + QR_EXPIRE_HOURS * 60 * 60 * 1000);
-    const payload = JSON.stringify({
-      passengerId: req.user._id,
-      fromStop,
-      toStop,
-      expiresAt,
-    });
     const ticket = await Ticket.create({
       passenger: req.user._id,
       fromStop,
       toStop,
       price: price || TICKET_PRICE,
-      qrCode: payload,
+      qrCode: '',
       expiresAt,
     });
+    const payload = JSON.stringify({
+      ticketId: ticket._id.toString(),
+      passengerId: req.user._id.toString(),
+      fromStop,
+      toStop,
+      expiresAt: expiresAt.toISOString(),
+    });
+    ticket.qrCode = payload;
+    await ticket.save();
     res.status(201).json({
       success: true,
       ticket,

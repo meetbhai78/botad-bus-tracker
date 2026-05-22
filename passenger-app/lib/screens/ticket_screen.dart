@@ -54,28 +54,32 @@ class _TicketScreenState extends State<TicketScreen> {
       final result = jsonDecode(response.body);
 
       if (!mounted) return;
-      setState(() {
-        if (response.statusCode == 201 || response.statusCode == 200) {
-          qrData = result['data']?['qrCode']?.toString() ??
-              result['ticket']?['qrCode']?.toString() ??
-              'ticket:$fromStop->$toStop:$price';
+      if (response.statusCode == 201 || response.statusCode == 200) {
+        final raw = result['data']?['qrCode']?.toString() ??
+            result['ticket']?['qrCode']?.toString();
+        if (raw == null || raw.isEmpty) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Invalid response from server'), backgroundColor: Colors.redAccent),
+          );
+        } else {
+          setState(() => qrData = raw);
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(content: Text('Ticket booked!'), backgroundColor: AppColors.primary),
           );
-        } else {
-          qrData = 'ticket_mock_${DateTime.now().millisecondsSinceEpoch}';
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Demo ticket (guest mode)'), backgroundColor: AppColors.accent),
-          );
         }
-      });
+      } else {
+        final msg = result['message']?.toString() ?? 'Could not book ticket';
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(msg), backgroundColor: Colors.redAccent),
+        );
+      }
     } catch (e) {
       if (!mounted) return;
       setState(() {
-        qrData = 'ticket_mock_${DateTime.now().millisecondsSinceEpoch}';
+        qrData = null;
       });
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Offline demo ticket created')),
+        SnackBar(content: Text('Network error: ${e.toString()}'), backgroundColor: Colors.redAccent),
       );
     } finally {
       if (mounted) setState(() => _isLoading = false);

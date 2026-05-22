@@ -208,8 +208,8 @@ class _MapScreenState extends State<MapScreen> {
       _busMarkers = buses
           .where((b) => b['lat'] != null && b['lng'] != null)
           .map((b) {
-            final lat = b['lat'] as double;
-            final lng = b['lng'] as double;
+            final lat = (b['lat'] as num).toDouble();
+            final lng = (b['lng'] as num).toDouble();
             final busNumber = b['busNumber']?.toString() ?? 'Bus';
             final busName = b['busName']?.toString() ?? '';
 
@@ -347,7 +347,7 @@ class _MapScreenState extends State<MapScreen> {
                   Navigator.pop(context);
                   // Focus the camera on this bus
                   if (busData['lat'] != null && busData['lng'] != null) {
-                    _mapController.move(LatLng(busData['lat'], busData['lng']), 16.0);
+                    _mapController.move(LatLng((busData['lat'] as num).toDouble(), (busData['lng'] as num).toDouble()), 16.0);
                   }
                 },
                 icon: const Icon(Icons.my_location, color: Colors.white),

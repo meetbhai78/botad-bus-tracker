@@ -77,10 +77,18 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     // Find if a bus is already assigned to this driver
     final userId = user?['id'] ?? user?['_id'];
-    final assignedBus = _buses.firstWhere(
-      (b) => b['driver'] != null && (b['driver']['_id'] == userId || b['driver']['id'] == userId),
-      orElse: () => null,
-    );
+    Map<String, dynamic>? assignedBus;
+    for (final raw in _buses) {
+      if (raw is! Map<String, dynamic>) continue;
+      final b = raw;
+      final d = b['driver'];
+      if (d == null) continue;
+      final did = d is Map ? (d['_id'] ?? d['id']) : d;
+      if (did == userId || did?.toString() == userId?.toString()) {
+        assignedBus = b;
+        break;
+      }
+    }
 
     return Scaffold(
       appBar: AppBar(title: const Text('Driver Home')),

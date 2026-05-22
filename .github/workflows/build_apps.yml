@@ -34,7 +34,12 @@ jobs:
 
       - name: Build APK (Passenger App)
         working-directory: ./passenger-app
-        run: flutter build apk --release --dart-define=API_BASE_URL=https://botad-bus-tracker.onrender.com --dart-define=MAPTILER_KEY=d39cWWFDlw1ibSbMysvD
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          MAPTILER_KEY: ${{ secrets.MAPTILER_KEY }}
+        run: |
+          API="${API_BASE_URL:-https://botad-bus-tracker.onrender.com}"
+          flutter build apk --release --dart-define=API_BASE_URL="$API" --dart-define=MAPTILER_KEY="${MAPTILER_KEY:-YOUR_MAPTILER_KEY}"
 
       # Build Driver App
       - name: Get Dependencies (Driver App)
@@ -43,7 +48,12 @@ jobs:
 
       - name: Build APK (Driver App)
         working-directory: ./driver-app
-        run: flutter build apk --release --dart-define=API_BASE_URL=https://botad-bus-tracker.onrender.com --dart-define=MAPTILER_KEY=d39cWWFDlw1ibSbMysvD
+        env:
+          API_BASE_URL: ${{ vars.API_BASE_URL }}
+          MAPTILER_KEY: ${{ secrets.MAPTILER_KEY }}
+        run: |
+          API="${API_BASE_URL:-https://botad-bus-tracker.onrender.com}"
+          flutter build apk --release --dart-define=API_BASE_URL="$API" --dart-define=MAPTILER_KEY="${MAPTILER_KEY:-YOUR_MAPTILER_KEY}"
 
       # Upload Generated APKs to Artifacts
       - name: Upload Passenger App APK

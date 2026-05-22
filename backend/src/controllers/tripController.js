@@ -68,7 +68,13 @@ const getTripById = async (req, res, next) => {
       .populate('driver', 'name phone')
       .populate('route');
     if (!trip) return res.status(404).json({ success: false, message: 'Trip not found' });
-    res.json({ success: true, trip });
+    if (req.user.role === 'admin') {
+      return res.json({ success: true, trip });
+    }
+    if (req.user.role === 'driver' && trip.driver.toString() === req.user._id.toString()) {
+      return res.json({ success: true, trip });
+    }
+    return res.status(403).json({ success: false, message: 'Forbidden' });
   } catch (err) {
     next(err);
   }

@@ -54,7 +54,7 @@ afterAll(async () => {
 
 describe('App Tests', () => {
   it('Health Check', async () => {
-    const res = await request(app).get('/api/health');
+    const res = await request(app).get('/health');
     expect(res.statusCode).toEqual(200);
     expect(res.body.success).toBeTruthy();
   });

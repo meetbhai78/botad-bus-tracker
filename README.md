@@ -92,6 +92,10 @@ botad-bus-tracker/
 - Frontend → Vercel
 - DB → MongoDB Atlas
 - Set `CORS_ORIGINS` to your Vercel URL
+- Backend `.env`: strong `JWT_SECRET`, optional `ETA_SERVICE_URL` for `ai-eta` (`POST /predict-eta`)
+- Flutter release: `--dart-define=API_BASE_URL=...` and `--dart-define=MAPTILER_KEY=...`
+- GitHub Actions: **secret** `MAPTILER_KEY`; optional **variable** `API_BASE_URL` for APK builds
+- `GET /api/trips/active` is **admin-only**
 
 ---
 
