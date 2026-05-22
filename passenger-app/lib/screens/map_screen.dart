@@ -71,11 +71,39 @@ class _MapScreenState extends State<MapScreen> {
       final res = await http.get(Uri.parse('$apiBaseUrl/api/routes/$routeId'));
       if (res.statusCode == 200) {
         final data = jsonDecode(res.body);
-        if (data['success'] && data['route'] != null && data['route']['polyline'] != null) {
-          final encoded = data['route']['polyline'] as String;
+        if (data['success'] && data['route'] != null) {
+          final route = data['route'];
+          List<LatLng> points = [];
+          
+          // 1. Try decoding OSRM polyline first if present
+          if (route['polyline'] != null && route['polyline'].toString().isNotEmpty) {
+            try {
+              points = _decodePolyline(route['polyline'] as String);
+            } catch (e) {
+              debugPrint('Decoding polyline failed: $e');
+            }
+          }
+          
+          // 2. Fallback to connecting stops in order if polyline was missing or failed to decode
+          if (points.isEmpty && route['stops'] != null && route['stops'] is List) {
+            final List<dynamic> stopsList = List.from(route['stops']);
+            stopsList.sort((a, b) {
+              final int orderA = a['order'] is int ? a['order'] : 0;
+              final int orderB = b['order'] is int ? b['order'] : 0;
+              return orderA.compareTo(orderB);
+            });
+            
+            for (var stop in stopsList) {
+              if (stop['lat'] != null && stop['lng'] != null) {
+                points.add(LatLng((stop['lat'] as num).toDouble(), (stop['lng'] as num).toDouble()));
+              }
+            }
+            debugPrint('Polyline fallback loaded with ${points.length} stops.');
+          }
+
           if (mounted) {
             setState(() {
-              _selectedRoutePolyline = _decodePolyline(encoded);
+              _selectedRoutePolyline = points;
             });
           }
         }
@@ -281,10 +309,22 @@ class _MapScreenState extends State<MapScreen> {
   void _onBusTapped(dynamic busData) {
     final busName = busData['busName']?.toString() ?? 'Bus';
     final busNumber = busData['busNumber']?.toString() ?? '';
+    
+    // Parse route details defensively
     final routeData = busData['route'];
-    final routeName = routeData?['routeName']?.toString() ?? 'N/A';
+    String routeName = 'N/A';
+    String? routeId = busData['routeId']?.toString();
+    
+    if (routeData != null) {
+      if (routeData is Map) {
+        routeName = routeData['routeName']?.toString() ?? 'N/A';
+        routeId ??= routeData['_id']?.toString();
+      } else if (routeData is String) {
+        routeId ??= routeData;
+      }
+    }
+    
     final busId = busData['busId']?.toString();
-    final routeId = busData['routeId']?.toString() ?? routeData?['_id']?.toString();
     
     setState(() {
       _trackedBusId = busId; // Immediately track it when tapped!
@@ -488,8 +528,8 @@ class _MapScreenState extends State<MapScreen> {
             polylines: [
               Polyline(
                 points: _selectedRoutePolyline,
-                strokeWidth: 5.0,
-                color: Colors.blueAccent.withValues(alpha: 0.8),
+                strokeWidth: 6.0,
+                color: const Color(0xFF2563EB).withValues(alpha: 0.8),
                 isDotted: false,
               ),
             ],
