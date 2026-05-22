@@ -241,17 +241,21 @@ class _FindBusScreenState extends State<FindBusScreen> {
         final isLive = bus['isLive'] == true;
         final route = bus['route'];
         final routeId = route?['_id']?.toString();
-        final busId = bus['_id']?.toString();
 
-        // Filter timetables that match this bus and this route
+        // Filter timetables that match this route
         final List<dynamic> busTimetables = _allTimetables.where((tt) {
-          final ttBus = tt['bus'];
           final ttRoute = tt['route'];
-          if (ttBus == null || ttRoute == null) return false;
-          final ttBusId = ttBus is Map ? ttBus['_id']?.toString() : ttBus.toString();
+          if (ttRoute == null) return false;
           final ttRouteId = ttRoute is Map ? ttRoute['_id']?.toString() : ttRoute.toString();
-          return ttBusId == busId && ttRouteId == routeId;
+          return ttRouteId == routeId;
         }).toList();
+
+        // Sort schedules chronologically by departureTime ascending
+        busTimetables.sort((a, b) {
+          final String depA = a['departureTime']?.toString() ?? '00:00';
+          final String depB = b['departureTime']?.toString() ?? '00:00';
+          return depA.compareTo(depB);
+        });
 
         return Card(
           child: InkWell(
@@ -303,17 +307,19 @@ class _FindBusScreenState extends State<FindBusScreen> {
                             runSpacing: 6,
                             children: busTimetables.map((tt) {
                               final depTime = tt['departureTime']?.toString() ?? '00:00';
-                              
-                              // Find arrival time at our Boarding stop and Destination stop
+                                                          // Find arrival time at our Boarding stop and Destination stop
                               String? stopArrivalTime;
                               String? destArrivalTime;
                               if (tt['schedule'] != null && tt['schedule'] is List) {
                                 for (var s in tt['schedule']) {
                                   final sName = s['stopName']?.toString() ?? '';
-                                  if (sName.toLowerCase().contains(_from!.name.toLowerCase())) {
+                                  final sNameTrimmed = sName.trim().toLowerCase();
+                                  final fromNameTrimmed = _from!.name.trim().toLowerCase();
+                                  final toNameTrimmed = _to!.name.trim().toLowerCase();
+                                  if (sNameTrimmed == fromNameTrimmed) {
                                     stopArrivalTime = s['arrivalTime']?.toString();
                                   }
-                                  if (sName.toLowerCase().contains(_to!.name.toLowerCase())) {
+                                  if (sNameTrimmed == toNameTrimmed) {
                                     destArrivalTime = s['arrivalTime']?.toString();
                                   }
                                 }

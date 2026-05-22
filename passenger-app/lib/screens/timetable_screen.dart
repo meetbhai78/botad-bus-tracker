@@ -77,6 +77,16 @@ class _TimetableScreenState extends State<TimetableScreen> {
       }
       groups[routeId]!.add(tt);
     }
+
+    // Sort each group's schedules chronologically by departureTime ascending
+    groups.forEach((routeId, list) {
+      list.sort((a, b) {
+        final String depA = a['departureTime']?.toString() ?? '00:00';
+        final String depB = b['departureTime']?.toString() ?? '00:00';
+        return depA.compareTo(depB);
+      });
+    });
+
     return groups;
   }
 
