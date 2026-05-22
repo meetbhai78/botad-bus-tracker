@@ -4,8 +4,6 @@ import 'package:latlong2/latlong.dart';
 import '../services/socket_service.dart';
 import '../services/stops_service.dart';
 import '../theme/app_colors.dart';
-import 'bus_list_screen.dart';
-import 'search_buses_screen.dart';
 import 'timetable_screen.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
@@ -35,7 +33,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _notifiedArrival = false;
   
   List<LatLng> _selectedRoutePolyline = [];
-  String? _selectedBusId;
+  String? _trackedBusId;
 
   // Simple OSRM Polyline Decoder (Precision 5)
   List<LatLng> _decodePolyline(String encoded) {
@@ -90,6 +88,7 @@ class _MapScreenState extends State<MapScreen> {
   @override
   void initState() {
     super.initState();
+    _trackedBusId = widget.targetBusId;
     _loadStops();
     _socket.onBuses = _updateBuses;
     _socket.connect();
@@ -211,10 +210,12 @@ class _MapScreenState extends State<MapScreen> {
             final lat = (b['lat'] as num).toDouble();
             final lng = (b['lng'] as num).toDouble();
             final busNumber = b['busNumber']?.toString() ?? 'Bus';
-            final busName = b['busName']?.toString() ?? '';
 
-            // Focus on target bus
-            if (widget.targetBusId != null && b['busId']?.toString() == widget.targetBusId) {
+            // Focus on target bus or live follow tracked bus
+            final isTracked = _trackedBusId != null && b['busId']?.toString() == _trackedBusId;
+            if (isTracked) {
+              _mapController.move(LatLng(lat, lng), _mapController.camera.zoom);
+            } else if (widget.targetBusId != null && b['busId']?.toString() == widget.targetBusId) {
               if (!_hasFocusedOnTarget) {
                 Future.delayed(const Duration(milliseconds: 500), () {
                   _mapController.move(LatLng(lat, lng), 16.0);
@@ -283,10 +284,10 @@ class _MapScreenState extends State<MapScreen> {
     final routeData = busData['route'];
     final routeName = routeData?['routeName']?.toString() ?? 'N/A';
     final busId = busData['busId']?.toString();
-    final routeId = busData['routeId']?.toString();
+    final routeId = busData['routeId']?.toString() ?? routeData?['_id']?.toString();
     
     setState(() {
-      _selectedBusId = busId;
+      _trackedBusId = busId; // Immediately track it when tapped!
       if (routeId != null) {
         _fetchRoutePolyline(routeId);
       } else {
@@ -294,69 +295,152 @@ class _MapScreenState extends State<MapScreen> {
       }
     });
 
+    if (busData['lat'] != null && busData['lng'] != null) {
+      _mapController.move(LatLng((busData['lat'] as num).toDouble(), (busData['lng'] as num).toDouble()), 15.5);
+    }
+
     showModalBottomSheet(
       context: context,
+      backgroundColor: Colors.white,
+      elevation: 8,
+      barrierColor: Colors.black.withValues(alpha: 0.1), // Light barrier so map is visible
       shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(24),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                const Icon(Icons.directions_bus, size: 30, color: AppColors.primary),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (ctx, setModalState) {
+            final isCurrentlyTracking = _trackedBusId == busId;
+            return Padding(
+              padding: const EdgeInsets.fromLTRB(24, 20, 24, 32),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Center(
+                    child: Container(
+                      width: 40,
+                      height: 5,
+                      margin: const EdgeInsets.only(bottom: 20),
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade300,
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                  ),
+                  Row(
                     children: [
-                      Text('$busName ($busNumber)', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                      Text('Route: $routeName', style: const TextStyle(color: Colors.black54)),
+                      Container(
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.directions_bus_rounded, size: 28, color: AppColors.primary),
+                      ),
+                      const SizedBox(width: 16),
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              '$busName ($busNumber)',
+                              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                            ),
+                            const SizedBox(height: 4),
+                            Row(
+                              children: [
+                                const Icon(Icons.route_rounded, size: 16, color: AppColors.primary),
+                                const SizedBox(width: 4),
+                                Expanded(
+                                  child: Text(
+                                    'Route: $routeName',
+                                    style: const TextStyle(color: AppColors.textSecondary, fontWeight: FontWeight.w500),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+                        ),
+                      ),
                     ],
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
-            const Text('Upcoming Stops:', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey.shade100,
-                borderRadius: BorderRadius.circular(8),
+                  const SizedBox(height: 24),
+                  Row(
+                    children: [
+                      Expanded(
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            side: BorderSide(
+                              color: isCurrentlyTracking ? AppColors.primary : AppColors.border,
+                              width: 1.5,
+                            ),
+                            backgroundColor: isCurrentlyTracking ? AppColors.primary.withValues(alpha: 0.05) : Colors.transparent,
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: () {
+                            setState(() {
+                              if (isCurrentlyTracking) {
+                                _trackedBusId = null; // Turn off live auto-follow tracking
+                              } else {
+                                _trackedBusId = busId; // Turn on live auto-follow tracking
+                                // Focus instantly
+                                if (busData['lat'] != null && busData['lng'] != null) {
+                                  _mapController.move(LatLng((busData['lat'] as num).toDouble(), (busData['lng'] as num).toDouble()), 16.0);
+                                }
+                              }
+                            });
+                            // Update internal dialog state
+                            setModalState(() {});
+                          },
+                          icon: Icon(
+                            isCurrentlyTracking ? Icons.gps_fixed_rounded : Icons.gps_not_fixed_rounded,
+                            color: isCurrentlyTracking ? AppColors.primary : AppColors.textSecondary,
+                          ),
+                          label: Text(
+                            isCurrentlyTracking ? 'Auto-Follow Active' : 'Auto-Follow',
+                            style: TextStyle(
+                              color: isCurrentlyTracking ? AppColors.primary : AppColors.textPrimary,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: FilledButton.icon(
+                          style: FilledButton.styleFrom(
+                            backgroundColor: AppColors.accent,
+                            padding: const EdgeInsets.symmetric(vertical: 14),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                          ),
+                          onPressed: () {
+                            Navigator.pop(context);
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => TimetableScreen(initialFromStop: routeName != 'N/A' ? routeName : null),
+                              ),
+                            );
+                          },
+                          icon: const Icon(Icons.schedule_rounded, color: Colors.white),
+                          label: const Text(
+                            'Route Details',
+                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
               ),
-              child: const Text(
-                'This bus stops at all major locations along the route. Tap "Search Route" for full timetable details.',
-                style: TextStyle(color: Colors.black87),
-              ),
-            ),
-            const SizedBox(height: 20),
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton.icon(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.accent,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                onPressed: () {
-                  Navigator.pop(context);
-                  // Focus the camera on this bus
-                  if (busData['lat'] != null && busData['lng'] != null) {
-                    _mapController.move(LatLng((busData['lat'] as num).toDouble(), (busData['lng'] as num).toDouble()), 16.0);
-                  }
-                },
-                icon: const Icon(Icons.my_location, color: Colors.white),
-                label: const Text('Track Bus', style: TextStyle(color: Colors.white, fontSize: 16)),
-              ),
-            ),
-          ],
-        ),
-      ),
+            );
+          },
+        );
+      },
     );
   }
 
@@ -396,7 +480,7 @@ class _MapScreenState extends State<MapScreen> {
       options: MapOptions(initialCenter: _center, initialZoom: 14.0),
       children: [
         TileLayer(
-          urlTemplate: 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=$maptilerKey',
+          urlTemplate: mapTileUrl,
           userAgentPackageName: 'com.botad.passenger',
         ),
         if (_selectedRoutePolyline.isNotEmpty)
@@ -405,7 +489,7 @@ class _MapScreenState extends State<MapScreen> {
               Polyline(
                 points: _selectedRoutePolyline,
                 strokeWidth: 5.0,
-                color: Colors.blueAccent.withOpacity(0.8),
+                color: Colors.blueAccent.withValues(alpha: 0.8),
                 isDotted: false,
               ),
             ],
@@ -473,27 +557,6 @@ class _MapScreenState extends State<MapScreen> {
                         style: Theme.of(context).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
                       ),
                     ),
-                    _MapAction(
-                      icon: Icons.search_rounded,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const SearchBusesScreen()),
-                      ),
-                    ),
-                    _MapAction(
-                      icon: Icons.schedule_rounded,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const TimetableScreen()),
-                      ),
-                    ),
-                    _MapAction(
-                      icon: Icons.list_rounded,
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(builder: (_) => const BusListScreen()),
-                      ),
-                    ),
                   ],
                 ),
               ),
@@ -525,22 +588,6 @@ class _MapScreenState extends State<MapScreen> {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _MapAction extends StatelessWidget {
-  const _MapAction({required this.icon, required this.onTap});
-
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: Icon(icon, color: AppColors.primary),
-      onPressed: onTap,
-      visualDensity: VisualDensity.compact,
     );
   }
 }

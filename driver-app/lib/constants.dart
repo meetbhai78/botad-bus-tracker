@@ -5,3 +5,11 @@ const String socketUrl = String.fromEnvironment('API_BASE_URL', defaultValue: 'h
 
 // Use --dart-define=MAPTILER_KEY=...
 const String maptilerKey = String.fromEnvironment('MAPTILER_KEY', defaultValue: 'YOUR_MAPTILER_KEY');
+
+String get mapTileUrl {
+  if (maptilerKey == 'YOUR_MAPTILER_KEY' || maptilerKey.trim().isEmpty || maptilerKey.contains('YOUR')) {
+    return 'https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+  }
+  return 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=$maptilerKey';
+}
+
