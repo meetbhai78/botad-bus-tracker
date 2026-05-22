@@ -7,6 +7,7 @@ import 'qr_scanner_screen.dart';
 import '../constants.dart';
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
+import '../services/update_service.dart';
 import 'login_screen.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -25,6 +26,9 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadUserAndBuses();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      UpdateService.checkForUpdate(context);
+    });
   }
 
   Future<void> _loadUserAndBuses() async {
