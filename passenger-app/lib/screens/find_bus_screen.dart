@@ -353,9 +353,13 @@ class _FindBusScreenState extends State<FindBusScreen> {
         
         final bool isExpanded = _expandedTripIds.contains(ttId);
         
-        final busObj = tt['bus'] ?? {};
-        final busNumber = busObj['busNumber']?.toString() ?? 'GJ-11-BT-Unassigned';
-        final busName = busObj['busName']?.toString() ?? 'Scheduled Bus';
+        final busObj = tt['bus'];
+        final String busNumber = busObj is Map 
+            ? (busObj['busNumber']?.toString() ?? 'GJ-11-BT-Unassigned') 
+            : 'GJ-11-BT-Unassigned';
+        final String busName = busObj is Map 
+            ? (busObj['busName']?.toString() ?? 'Scheduled Bus') 
+            : 'Scheduled Bus';
 
         return Card(
           elevation: 2,

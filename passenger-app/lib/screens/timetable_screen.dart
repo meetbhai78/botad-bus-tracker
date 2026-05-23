@@ -424,14 +424,18 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                           ),
                                           ...timetables.map((tt) {
                                             final departureTime = tt['departureTime']?.toString() ?? '00:00';
-                                            final busObj = tt['bus'] ?? {};
-                                            final busNumber = busObj['busNumber']?.toString() ?? 'Unassigned';
-                                            final busName = busObj['busName']?.toString() ?? '';
+                                            final busObj = tt['bus'];
+                                            final String busNumber = busObj is Map 
+                                                ? (busObj['busNumber']?.toString() ?? 'Unassigned') 
+                                                : 'Unassigned';
+                                            final String busName = busObj is Map 
+                                                ? (busObj['busName']?.toString() ?? '') 
+                                                : '';
                                             final ttSchedule = tt['schedule'] as List<dynamic>? ?? [];
                                             final sortedTtSchedule = _getSortedSchedule(ttSchedule);
 
                                             // Check if this specific bus is active
-                                            final String? busId = busObj['_id']?.toString();
+                                            final String? busId = busObj is Map ? busObj['_id']?.toString() : (busObj is String ? busObj : null);
                                             final activeBus = _activeBuses.firstWhere(
                                               (b) => b['_id']?.toString() == busId,
                                               orElse: () => null,
