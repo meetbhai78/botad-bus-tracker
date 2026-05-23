@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import '../constants.dart';
 import '../theme/app_colors.dart';
+import 'bus_track_screen.dart';
 
 class TimetableScreen extends StatefulWidget {
   const TimetableScreen({super.key, this.initialFromStop});
@@ -16,6 +17,7 @@ class TimetableScreen extends StatefulWidget {
 class _TimetableScreenState extends State<TimetableScreen> {
   final TextEditingController _searchController = TextEditingController();
   List<dynamic> _allTimetables = [];
+  List<dynamic> _activeBuses = [];
   bool _isLoading = true;
   String _searchQuery = '';
   String? _expandedRouteId;
@@ -35,23 +37,31 @@ class _TimetableScreenState extends State<TimetableScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final response = await http.get(Uri.parse('$apiBaseUrl/api/timetable'));
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        if (mounted) {
-          setState(() {
-            _allTimetables = data['timetables'] ?? [];
-            _isLoading = false;
-          });
-        }
-      } else {
-        if (mounted) {
-          setState(() {
-            _allTimetables = [];
-            _isLoading = false;
-          });
-        }
+      final responses = await Future.wait([
+        http.get(Uri.parse('$apiBaseUrl/api/timetable')),
+        http.get(Uri.parse('$apiBaseUrl/api/buses')),
+      ]);
+
+      if (!mounted) return;
+
+      List<dynamic> fetchedTimetables = [];
+      List<dynamic> fetchedBuses = [];
+
+      if (responses[0].statusCode == 200) {
+        final data = jsonDecode(responses[0].body);
+        fetchedTimetables = data['timetables'] ?? [];
       }
+
+      if (responses[1].statusCode == 200) {
+        final data = jsonDecode(responses[1].body);
+        fetchedBuses = data['buses'] ?? [];
+      }
+
+      setState(() {
+        _allTimetables = fetchedTimetables;
+        _activeBuses = fetchedBuses;
+        _isLoading = false;
+      });
     } catch (e) {
       debugPrint('Error loading timetables: $e');
       if (mounted) {
@@ -133,6 +143,29 @@ class _TimetableScreenState extends State<TimetableScreen> {
       return orderA.compareTo(orderB);
     });
     return sorted;
+  }
+
+  bool _isRouteLive(String routeId) {
+    return _activeBuses.any((bus) {
+      final route = bus['route'];
+      if (route == null) return false;
+      final busRouteId = route is Map ? route['_id']?.toString() : route.toString();
+      return busRouteId == routeId && bus['isLive'] == true;
+    });
+  }
+
+  String _formatTimeStr(String hhmm) {
+    try {
+      final parts = hhmm.trim().split(':');
+      if (parts.length >= 2) {
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        final period = h >= 12 ? 'PM' : 'AM';
+        final displayHour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+        return '${displayHour.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
+      }
+    } catch (_) {}
+    return hhmm;
   }
 
   @override
@@ -218,7 +251,6 @@ class _TimetableScreenState extends State<TimetableScreen> {
                             final route = firstTt['route'] ?? {};
                             final routeNumber = route['routeNumber']?.toString() ?? 'R';
 
-
                             final schedule = firstTt['schedule'] as List<dynamic>? ?? [];
                             final sortedSchedule = _getSortedSchedule(schedule);
 
@@ -230,6 +262,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                 : 'End';
 
                             final isExpanded = _expandedRouteId == routeId;
+                            final bool isRouteLiveNow = _isRouteLive(routeId);
 
                             return Card(
                               elevation: 2,
@@ -238,7 +271,9 @@ class _TimetableScreenState extends State<TimetableScreen> {
                               shape: RoundedRectangleBorder(
                                 borderRadius: BorderRadius.circular(18),
                                 side: BorderSide(
-                                  color: isExpanded ? AppColors.primary.withOpacity(0.3) : Colors.transparent,
+                                  color: isRouteLiveNow
+                                      ? Colors.green.withValues(alpha: 0.25)
+                                      : (isExpanded ? AppColors.primary.withValues(alpha: 0.3) : Colors.transparent),
                                   width: 1.5,
                                 ),
                               ),
@@ -260,7 +295,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                           Container(
                                             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                                             decoration: BoxDecoration(
-                                              color: AppColors.primary.withOpacity(0.1),
+                                              color: AppColors.primary.withValues(alpha: 0.1),
                                               borderRadius: BorderRadius.circular(12),
                                             ),
                                             child: Text(
@@ -295,18 +330,67 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                   ],
                                                 ),
                                                 const SizedBox(height: 6),
-                                                Text(
-                                                  'Total scheduled trips: ${timetables.length}',
-                                                  style: TextStyle(
-                                                    fontSize: 13,
-                                                    color: Colors.grey.shade600,
-                                                    fontWeight: FontWeight.w500,
-                                                  ),
+                                                Row(
+                                                  children: [
+                                                    Text(
+                                                      'Total scheduled trips: ${timetables.length}',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: Colors.grey.shade600,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Container(
+                                                      width: 4,
+                                                      height: 4,
+                                                      decoration: BoxDecoration(
+                                                        color: Colors.grey.shade400,
+                                                        shape: BoxShape.circle,
+                                                      ),
+                                                    ),
+                                                    const SizedBox(width: 8),
+                                                    Text(
+                                                      '${schedule.length} stops',
+                                                      style: TextStyle(
+                                                        fontSize: 13,
+                                                        color: Colors.grey.shade600,
+                                                        fontWeight: FontWeight.w500,
+                                                      ),
+                                                    ),
+                                                  ],
                                                 ),
                                               ],
                                             ),
                                           ),
                                           const SizedBox(width: 8),
+                                          
+                                          // Pulse live banner if route has an active bus
+                                          if (isRouteLiveNow) ...[
+                                            Container(
+                                              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                              decoration: BoxDecoration(
+                                                color: Colors.green.withValues(alpha: 0.12),
+                                                borderRadius: BorderRadius.circular(8),
+                                              ),
+                                              child: const Row(
+                                                children: [
+                                                  _PulseBeacon(),
+                                                  SizedBox(width: 4),
+                                                  Text(
+                                                    'LIVE',
+                                                    style: TextStyle(
+                                                      fontSize: 10,
+                                                      fontWeight: FontWeight.w900,
+                                                      color: Colors.green,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(width: 8),
+                                          ],
+                                          
                                           Icon(
                                             isExpanded ? Icons.keyboard_arrow_up_rounded : Icons.keyboard_arrow_down_rounded,
                                             color: Colors.grey,
@@ -346,13 +430,23 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                             final ttSchedule = tt['schedule'] as List<dynamic>? ?? [];
                                             final sortedTtSchedule = _getSortedSchedule(ttSchedule);
 
+                                            // Check if this specific bus is active
+                                            final String? busId = busObj['_id']?.toString();
+                                            final activeBus = _activeBuses.firstWhere(
+                                              (b) => b['_id']?.toString() == busId,
+                                              orElse: () => null,
+                                            );
+                                            final bool isLiveTrip = activeBus != null && activeBus['isLive'] == true;
+
                                             return Container(
                                               margin: const EdgeInsets.only(bottom: 12),
                                               padding: const EdgeInsets.all(14),
                                               decoration: BoxDecoration(
                                                 color: Colors.white,
                                                 borderRadius: BorderRadius.circular(14),
-                                                border: Border.all(color: Colors.grey.shade200),
+                                                border: Border.all(
+                                                  color: isLiveTrip ? Colors.green.withValues(alpha: 0.3) : Colors.grey.shade200,
+                                                ),
                                               ),
                                               child: Column(
                                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -367,7 +461,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                               color: AppColors.primary, size: 20),
                                                           const SizedBox(width: 8),
                                                           Text(
-                                                            departureTime,
+                                                            _formatTimeStr(departureTime),
                                                             style: const TextStyle(
                                                               fontSize: 16,
                                                               fontWeight: FontWeight.w900,
@@ -379,21 +473,30 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                       Container(
                                                         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                         decoration: BoxDecoration(
-                                                          color: Colors.orange.shade50,
+                                                          color: isLiveTrip ? Colors.green.withValues(alpha: 0.08) : Colors.orange.shade50,
                                                           borderRadius: BorderRadius.circular(8),
-                                                          border: Border.all(color: Colors.orange.shade200),
+                                                          border: Border.all(
+                                                            color: isLiveTrip ? Colors.green.withValues(alpha: 0.25) : Colors.orange.shade200,
+                                                          ),
                                                         ),
                                                         child: Row(
                                                           children: [
-                                                            Icon(Icons.directions_bus_rounded,
-                                                                color: Colors.orange.shade700, size: 14),
+                                                            if (isLiveTrip) ...[
+                                                              const _PulseBeacon(),
+                                                              const SizedBox(width: 6),
+                                                            ],
+                                                            Icon(
+                                                              Icons.directions_bus_rounded,
+                                                              color: isLiveTrip ? Colors.green.shade700 : Colors.orange.shade700,
+                                                              size: 14,
+                                                            ),
                                                             const SizedBox(width: 4),
                                                             Text(
                                                               busNumber,
                                                               style: TextStyle(
                                                                 fontSize: 12,
                                                                 fontWeight: FontWeight.bold,
-                                                                color: Colors.orange.shade800,
+                                                                color: isLiveTrip ? Colors.green.shade800 : Colors.orange.shade800,
                                                               ),
                                                             ),
                                                           ],
@@ -412,6 +515,45 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                       ),
                                                     ),
                                                   ],
+                                                  
+                                                  // Track option for live runs in timetable
+                                                  if (isLiveTrip && activeBus != null) ...[
+                                                    const SizedBox(height: 10),
+                                                    Align(
+                                                      alignment: Alignment.centerRight,
+                                                      child: TextButton.icon(
+                                                        onPressed: () {
+                                                          Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                              builder: (_) => BusTrackScreen(
+                                                                busId: activeBus['_id']?.toString() ?? '',
+                                                                busName: activeBus['busName']?.toString() ?? 'Bus',
+                                                                busNumber: activeBus['busNumber']?.toString() ?? '',
+                                                                routeName: route['routeName']?.toString() ?? '',
+                                                                fromStop: firstStopName,
+                                                                toStop: lastStopName,
+                                                              ),
+                                                            ),
+                                                          );
+                                                        },
+                                                        style: TextButton.styleFrom(
+                                                          foregroundColor: Colors.green.shade800,
+                                                          backgroundColor: Colors.green.withValues(alpha: 0.08),
+                                                          shape: RoundedRectangleBorder(
+                                                            borderRadius: BorderRadius.circular(8),
+                                                          ),
+                                                          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                                        ),
+                                                        icon: const Icon(Icons.gps_fixed_rounded, size: 14),
+                                                        label: const Text(
+                                                          'Live Tracking',
+                                                          style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold),
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  ],
+
                                                   const SizedBox(height: 14),
                                                   // Interactive Timeline of stops
                                                   const Text(
@@ -463,7 +605,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 Container(
                   width: 2,
                   height: 10,
-                  color: isFirst ? Colors.transparent : AppColors.primary.withOpacity(0.3),
+                  color: isFirst ? Colors.transparent : AppColors.primary.withValues(alpha: 0.3),
                 ),
                 Container(
                   width: 10,
@@ -476,7 +618,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                 Container(
                   width: 2,
                   height: 20,
-                  color: isLast ? Colors.transparent : AppColors.primary.withOpacity(0.3),
+                  color: isLast ? Colors.transparent : AppColors.primary.withValues(alpha: 0.3),
                 ),
               ],
             ),
@@ -499,7 +641,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
             Padding(
               padding: const EdgeInsets.only(top: 4),
               child: Text(
-                arrivalTime,
+                _formatTimeStr(arrivalTime),
                 style: TextStyle(
                   fontSize: 13,
                   fontWeight: FontWeight.bold,
@@ -531,6 +673,49 @@ class _TimetableScreenState extends State<TimetableScreen> {
             textAlign: TextAlign.center,
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _PulseBeacon extends StatefulWidget {
+  const _PulseBeacon();
+
+  @override
+  State<_PulseBeacon> createState() => _PulseBeaconState();
+}
+
+class _PulseBeaconState extends State<_PulseBeacon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.3, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FadeTransition(
+      opacity: _animation,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: Colors.green,
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }
