@@ -7,7 +7,7 @@ import '../services/stops_service.dart';
 import '../widgets/stop_search_sheet.dart';
 import 'bus_track_screen.dart';
 
-/// Main flow: pick stops → see buses on route → tap bus → live location.
+/// Main flow: pick stops → search daily timetables & active buses → see all schedules → live track.
 class FindBusScreen extends StatefulWidget {
   const FindBusScreen({super.key, this.embedded = false, this.initialFrom});
 
@@ -25,6 +25,7 @@ class _FindBusScreenState extends State<FindBusScreen> {
   List<dynamic> _allTimetables = [];
   bool _loading = false;
   bool _searched = false;
+  final Set<String> _expandedTripIds = {};
 
   Future<void> _pickFrom() async {
     final stop = await showStopSearchSheet(context, title: 'Select boarding stop');
@@ -70,6 +71,7 @@ class _FindBusScreenState extends State<FindBusScreen> {
     setState(() {
       _loading = true;
       _searched = true;
+      _expandedTripIds.clear();
     });
 
     try {
@@ -127,6 +129,32 @@ class _FindBusScreenState extends State<FindBusScreen> {
     );
   }
 
+  int _parseTimeToMinutes(String hhmm) {
+    try {
+      final parts = hhmm.trim().split(':');
+      if (parts.length >= 2) {
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        return h * 60 + m;
+      }
+    } catch (_) {}
+    return 0;
+  }
+
+  String _formatTimeStr(String hhmm) {
+    try {
+      final parts = hhmm.trim().split(':');
+      if (parts.length >= 2) {
+        final h = int.parse(parts[0]);
+        final m = int.parse(parts[1]);
+        final period = h >= 12 ? 'PM' : 'AM';
+        final displayHour = h == 0 ? 12 : (h > 12 ? h - 12 : h);
+        return '${displayHour.toString().padLeft(2, '0')}:${m.toString().padLeft(2, '0')} $period';
+      }
+    } catch (_) {}
+    return hhmm;
+  }
+
   @override
   Widget build(BuildContext context) {
     final body = Column(
@@ -143,7 +171,7 @@ class _FindBusScreenState extends State<FindBusScreen> {
           const Padding(
             padding: EdgeInsets.fromLTRB(20, 4, 20, 0),
             child: Text(
-              'Stop choose karein, route ki buses dekhein, bus par tap karke live location.',
+              'Stops choose karein aur poore din ke schedules ke sath live tracking payein.',
               style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
             ),
           ),
@@ -220,176 +248,446 @@ class _FindBusScreenState extends State<FindBusScreen> {
       );
     }
     if (_loading) return const Center(child: CircularProgressIndicator());
-    if (_buses.isEmpty) {
+
+    // Search and match matching trips from daily timetables client-side
+    final List<Map<String, dynamic>> matchingTrips = [];
+    
+    if (_from != null && _to != null) {
+      final fromName = _from!.name.trim().toLowerCase();
+      final toName = _to!.name.trim().toLowerCase();
+      
+      for (var tt in _allTimetables) {
+        final schedule = tt['schedule'] as List<dynamic>? ?? [];
+        
+        final sourceIndex = schedule.indexWhere(
+          (s) => s['stopName']?.toString().trim().toLowerCase() == fromName
+        );
+        final destIndex = schedule.indexWhere(
+          (s) => s['stopName']?.toString().trim().toLowerCase() == toName
+        );
+        
+        if (sourceIndex != -1 && destIndex != -1 && sourceIndex < destIndex) {
+          matchingTrips.add({
+            'timetable': tt,
+            'sourceStop': schedule[sourceIndex],
+            'destStop': schedule[destIndex],
+            'stopsCount': destIndex - sourceIndex,
+            'intermediateSchedule': schedule.sublist(sourceIndex, destIndex + 1),
+          });
+        }
+      }
+    }
+
+    if (matchingTrips.isEmpty) {
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
           child: Text(
-            'Is route par abhi koi bus nahi mili.\nDriver trip start kare tab live dikhegi.',
+            'Is route par koi scheduled timetables nahi mile.\nKripya dusra boarding ya destination select karein.',
             textAlign: TextAlign.center,
             style: TextStyle(color: AppColors.textSecondary, height: 1.5),
           ),
         ),
       );
     }
+
+    // Sort matched trips chronologically by boarding stop departure time
+    matchingTrips.sort((a, b) {
+      final String depA = a['sourceStop']['arrivalTime']?.toString() ?? '00:00';
+      final String depB = b['sourceStop']['arrivalTime']?.toString() ?? '00:00';
+      return depA.compareTo(depB);
+    });
+
+    final DateTime now = DateTime.now();
+    final String currentTimeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
+
     return ListView.separated(
       padding: const EdgeInsets.all(20),
-      itemCount: _buses.length,
-      separatorBuilder: (_, __) => const SizedBox(height: 10),
+      itemCount: matchingTrips.length,
+      separatorBuilder: (_, __) => const SizedBox(height: 12),
       itemBuilder: (context, i) {
-        final bus = _buses[i] as Map<String, dynamic>;
-        final isLive = bus['isLive'] == true;
-        final route = bus['route'];
-        final routeId = route?['_id']?.toString();
-
-        // Filter timetables that match this route
-        final List<dynamic> busTimetables = _allTimetables.where((tt) {
-          final ttRoute = tt['route'];
-          if (ttRoute == null) return false;
-          final ttRouteId = ttRoute is Map ? ttRoute['_id']?.toString() : ttRoute.toString();
-          return ttRouteId == routeId;
-        }).toList();
-
-        // Sort schedules chronologically by departureTime ascending
-        busTimetables.sort((a, b) {
-          final String depA = a['departureTime']?.toString() ?? '00:00';
-          final String depB = b['departureTime']?.toString() ?? '00:00';
-          return depA.compareTo(depB);
-        });
+        final trip = matchingTrips[i];
+        final tt = trip['timetable'] as Map<String, dynamic>;
+        final ttId = tt['_id']?.toString() ?? i.toString();
+        
+        final sourceStop = trip['sourceStop'];
+        final destStop = trip['destStop'];
+        final stopsCount = trip['stopsCount'] as int;
+        final intermediateSchedule = trip['intermediateSchedule'] as List<dynamic>;
+        
+        final boardingTime = sourceStop['arrivalTime']?.toString() ?? '00:00';
+        final arrivalTime = destStop['arrivalTime']?.toString() ?? '00:00';
+        
+        // Calculate journey duration
+        final int startMin = _parseTimeToMinutes(boardingTime);
+        final int endMin = _parseTimeToMinutes(arrivalTime);
+        int diffMin = endMin - startMin;
+        if (diffMin < 0) diffMin += 24 * 60;
+        
+        // Match with active buses to trace live tracking
+        final ttBus = tt['bus'];
+        Map<String, dynamic>? activeBus;
+        if (ttBus != null) {
+          final ttBusId = ttBus is Map ? ttBus['_id']?.toString() : ttBus.toString();
+          activeBus = _buses.firstWhere(
+            (b) => b['_id']?.toString() == ttBusId,
+            orElse: () => null,
+          );
+        }
+        
+        final bool isLive = activeBus != null && activeBus['isLive'] == true;
+        
+        // Calculate trip status
+        String status = 'Upcoming';
+        Color statusColor = const Color(0xFF0D9488); // Primary Teal
+        if (isLive) {
+          status = 'Running';
+          statusColor = Colors.green;
+        } else if (currentTimeStr.compareTo(arrivalTime) > 0) {
+          status = 'Completed';
+          statusColor = Colors.grey.shade600;
+        } else {
+          status = 'Upcoming';
+          statusColor = const Color(0xFF0F766E);
+        }
+        
+        final bool isExpanded = _expandedTripIds.contains(ttId);
+        
+        final busObj = tt['bus'] ?? {};
+        final busNumber = busObj['busNumber']?.toString() ?? 'GJ-11-BT-Unassigned';
+        final busName = busObj['busName']?.toString() ?? 'Scheduled Bus';
 
         return Card(
-          child: InkWell(
-            onTap: () => _openBus(bus),
+          elevation: 2,
+          shadowColor: Colors.black12,
+          shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
-            child: Padding(
-              padding: const EdgeInsets.all(16),
-              child: Row(
-                children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: (isLive ? AppColors.primary : Colors.grey).withValues(alpha: 0.15),
-                    child: Icon(
-                      Icons.directions_bus_rounded,
-                      color: isLive ? AppColors.primary : Colors.grey,
-                      size: 30,
-                    ),
-                  ),
-                  const SizedBox(width: 14),
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
+            side: BorderSide(
+              color: isLive ? Colors.green.withValues(alpha: 0.25) : Colors.transparent,
+              width: 1.5,
+            ),
+          ),
+          clipBehavior: Clip.antiAlias,
+          child: Column(
+            children: [
+              // Top Info Row: Bus Details & Trip Status Badge
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                color: isLive ? Colors.green.withValues(alpha: 0.05) : Colors.grey.shade50,
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Row(
                       children: [
-                        Text(
-                          '${bus['busName']} · ${bus['busNumber']}',
-                          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+                        Icon(
+                          Icons.directions_bus_rounded,
+                          color: isLive ? Colors.green.shade700 : Colors.grey.shade600,
+                          size: 18,
                         ),
-                        const SizedBox(height: 4),
+                        const SizedBox(width: 8),
                         Text(
-                          route?['routeName']?.toString() ?? 'Route',
-                          style: const TextStyle(color: AppColors.textSecondary, fontSize: 13),
-                        ),
-                        
-                        // Scheduled Timings Row
-                        if (busTimetables.isNotEmpty) ...[
-                          const SizedBox(height: 10),
-                          const Text(
-                            'SCHEDULED TIMINGS:',
-                            style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w900,
-                              color: AppColors.accent,
-                              letterSpacing: 0.5,
-                            ),
+                          '$busName · $busNumber',
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            color: isLive ? Colors.green.shade900 : AppColors.textPrimary,
+                            fontSize: 13,
                           ),
-                          const SizedBox(height: 4),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 6,
-                            children: busTimetables.map((tt) {
-                              final depTime = tt['departureTime']?.toString() ?? '00:00';
-                                                          // Find arrival time at our Boarding stop and Destination stop
-                              String? stopArrivalTime;
-                              String? destArrivalTime;
-                              if (tt['schedule'] != null && tt['schedule'] is List) {
-                                for (var s in tt['schedule']) {
-                                  final sName = s['stopName']?.toString() ?? '';
-                                  final sNameTrimmed = sName.trim().toLowerCase();
-                                  final fromNameTrimmed = _from!.name.trim().toLowerCase();
-                                  final toNameTrimmed = _to!.name.trim().toLowerCase();
-                                  if (sNameTrimmed == fromNameTrimmed) {
-                                    stopArrivalTime = s['arrivalTime']?.toString();
-                                  }
-                                  if (sNameTrimmed == toNameTrimmed) {
-                                    destArrivalTime = s['arrivalTime']?.toString();
-                                  }
-                                }
-                              }
-                              
-                              final displayTime = stopArrivalTime ?? depTime;
-                              final tooltipText = destArrivalTime != null ? 'Reaches ${_to!.name} at $destArrivalTime' : 'Route Scheduled';
-                              
-                              return Tooltip(
-                                message: tooltipText,
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary.withValues(alpha: 0.08),
-                                    borderRadius: BorderRadius.circular(8),
-                                    border: Border.all(color: AppColors.primary.withValues(alpha: 0.2)),
-                                  ),
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      const Icon(Icons.access_time_filled_rounded, size: 12, color: AppColors.primary),
-                                      const SizedBox(width: 4),
-                                      Text(
-                                        displayTime,
-                                        style: const TextStyle(
-                                          fontSize: 12,
-                                          fontWeight: FontWeight.w800,
-                                          color: AppColors.primary,
-                                        ),
-                                      ),
-                                      if (destArrivalTime != null) ...[
-                                        const SizedBox(width: 4),
-                                        Text(
-                                          '(➔ $destArrivalTime)',
-                                          style: TextStyle(
-                                            fontSize: 10,
-                                            fontWeight: FontWeight.w500,
-                                            color: AppColors.primary.withValues(alpha: 0.7),
-                                          ),
-                                        ),
-                                      ],
-                                    ],
-                                  ),
-                                ),
-                              );
-                            }).toList(),
-                          ),
-                        ],
-                        
-                        const SizedBox(height: 10),
-                        Row(
-                          children: [
-                            _Chip(
-                              label: isLive ? 'LIVE' : 'Offline',
-                              color: isLive ? Colors.green : Colors.grey,
-                            ),
-                            const SizedBox(width: 8),
-                            _Chip(label: bus['status']?.toString() ?? '—', color: AppColors.primary),
-                          ],
                         ),
                       ],
                     ),
-                  ),
-                  const Icon(Icons.chevron_right_rounded, color: AppColors.textSecondary),
-                ],
+                    
+                    // Live Blinking dot + Status badge
+                    Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                      decoration: BoxDecoration(
+                        color: statusColor.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (isLive) ...[
+                            const _PulseBeacon(),
+                            const SizedBox(width: 5),
+                          ],
+                          Text(
+                            status.toUpperCase(),
+                            style: TextStyle(
+                              fontSize: 9,
+                              fontWeight: FontWeight.w900,
+                              color: statusColor,
+                              letterSpacing: 0.5,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
+              
+              // Transit times and journey path segment
+              InkWell(
+                onTap: () {
+                  setState(() {
+                    if (isExpanded) {
+                      _expandedTripIds.remove(ttId);
+                    } else {
+                      _expandedTripIds.add(ttId);
+                    }
+                  });
+                },
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+                  child: Row(
+                    children: [
+                      // Boarding departure details
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              _formatTimeStr(boardingTime),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _from!.name,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Duration flow arrow indicator
+                      Expanded(
+                        flex: 4,
+                        child: Column(
+                          children: [
+                            Text(
+                              '$diffMin min',
+                              style: const TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w800,
+                                color: AppColors.accent,
+                              ),
+                            ),
+                            const SizedBox(height: 2),
+                            Row(
+                              children: [
+                                Expanded(
+                                  child: Container(
+                                    height: 1.5,
+                                    color: Colors.grey.shade300,
+                                  ),
+                                ),
+                                Icon(
+                                  Icons.arrow_forward_ios_rounded,
+                                  size: 10,
+                                  color: Colors.grey.shade400,
+                                ),
+                              ],
+                            ),
+                            const SizedBox(height: 2),
+                            Text(
+                              '$stopsCount stops',
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w500,
+                                color: Colors.grey.shade500,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      
+                      // Destination arrival details
+                      Expanded(
+                        flex: 3,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.end,
+                          children: [
+                            Text(
+                              _formatTimeStr(arrivalTime),
+                              style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.w900,
+                                color: AppColors.textPrimary,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _to!.name,
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                                fontWeight: FontWeight.w500,
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              
+              // Expandable Stop timeline drawer
+              if (isExpanded) ...[
+                const Divider(height: 1, thickness: 1),
+                Container(
+                  color: Colors.grey.shade50,
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: _buildStopsTimeline(intermediateSchedule),
+                ),
+              ],
+              
+              // Track button panel for running buses
+              if (isLive) ...[
+                const Divider(height: 1, thickness: 1),
+                Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      Row(
+                        children: [
+                          const Icon(
+                            Icons.speed_rounded,
+                            size: 16,
+                            color: Colors.green,
+                          ),
+                          const SizedBox(width: 4),
+                          Text(
+                            'Speed: ${(activeBus['currentLocation']?['speed'] ?? 0.0).toStringAsFixed(1)} km/h',
+                            style: const TextStyle(
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.green,
+                            ),
+                          ),
+                        ],
+                      ),
+                      
+                      ElevatedButton.icon(
+                        onPressed: () => _openBus(activeBus!),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: AppColors.primary,
+                          foregroundColor: Colors.white,
+                          elevation: 1,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        ),
+                        icon: const Icon(Icons.gps_fixed_rounded, size: 16),
+                        label: const Text(
+                          'Track Live Location',
+                          style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
           ),
         );
       },
+    );
+  }
+
+  Widget _buildStopsTimeline(List<dynamic> stops) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Padding(
+          padding: EdgeInsets.only(left: 4, bottom: 8),
+          child: Text(
+            'STOPS TIMELINE:',
+            style: TextStyle(
+              fontSize: 10,
+              fontWeight: FontWeight.w900,
+              color: Colors.grey,
+              letterSpacing: 0.5,
+            ),
+          ),
+        ),
+        ...List.generate(stops.length, (idx) {
+          final s = stops[idx];
+          final sName = s['stopName']?.toString() ?? 'Stop';
+          final sTime = s['arrivalTime']?.toString() ?? '—';
+          final isFirst = idx == 0;
+          final isLast = idx == stops.length - 1;
+
+          return Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Column(
+                children: [
+                  Container(
+                    width: 2,
+                    height: 8,
+                    color: isFirst ? Colors.transparent : AppColors.primary.withValues(alpha: 0.3),
+                  ),
+                  Container(
+                    width: 8,
+                    height: 8,
+                    decoration: BoxDecoration(
+                      color: isFirst || isLast ? AppColors.accent : AppColors.primary,
+                      shape: BoxShape.circle,
+                    ),
+                  ),
+                  Container(
+                    width: 2,
+                    height: 18,
+                    color: isLast ? Colors.transparent : AppColors.primary.withValues(alpha: 0.3),
+                  ),
+                ],
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.only(top: 2),
+                  child: Text(
+                    sName,
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: isFirst || isLast ? FontWeight.bold : FontWeight.normal,
+                      color: isFirst || isLast ? AppColors.textPrimary : Colors.grey.shade700,
+                    ),
+                  ),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.only(top: 2),
+                child: Text(
+                  _formatTimeStr(sTime),
+                  style: TextStyle(
+                    fontSize: 12,
+                    fontWeight: FontWeight.bold,
+                    color: isFirst || isLast ? AppColors.accent : AppColors.primary,
+                  ),
+                ),
+              ),
+            ],
+          );
+        }),
+      ],
     );
   }
 }
@@ -430,23 +728,44 @@ class _StopRow extends StatelessWidget {
   }
 }
 
-class _Chip extends StatelessWidget {
-  const _Chip({required this.label, required this.color});
+class _PulseBeacon extends StatefulWidget {
+  const _PulseBeacon();
 
-  final String label;
-  final Color color;
+  @override
+  State<_PulseBeacon> createState() => _PulseBeaconState();
+}
+
+class _PulseBeaconState extends State<_PulseBeacon> with SingleTickerProviderStateMixin {
+  late AnimationController _controller;
+  late Animation<double> _animation;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1000),
+    )..repeat(reverse: true);
+    _animation = Tween<double>(begin: 0.3, end: 1.0).animate(_controller);
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Text(
-        label.toUpperCase(),
-        style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: color),
+    return FadeTransition(
+      opacity: _animation,
+      child: Container(
+        width: 8,
+        height: 8,
+        decoration: const BoxDecoration(
+          color: Colors.green,
+          shape: BoxShape.circle,
+        ),
       ),
     );
   }
