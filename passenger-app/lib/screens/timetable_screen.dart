@@ -91,8 +91,14 @@ class _TimetableScreenState extends State<TimetableScreen> {
     // Sort each group's schedules chronologically by departureTime ascending
     groups.forEach((routeId, list) {
       list.sort((a, b) {
-        final String depA = a['departureTime']?.toString() ?? '00:00';
-        final String depB = b['departureTime']?.toString() ?? '00:00';
+        // WARN-1 fix: Parse to minutes so '9:05' sorts before '10:00' correctly
+        int toMin(String t) {
+          final parts = t.trim().split(':');
+          if (parts.length < 2) return 0;
+          return (int.tryParse(parts[0]) ?? 0) * 60 + (int.tryParse(parts[1]) ?? 0);
+        }
+        final int depA = toMin(a['departureTime']?.toString() ?? '00:00');
+        final int depB = toMin(b['departureTime']?.toString() ?? '00:00');
         return depA.compareTo(depB);
       });
     });
@@ -434,13 +440,21 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                             final ttSchedule = tt['schedule'] as List<dynamic>? ?? [];
                                             final sortedTtSchedule = _getSortedSchedule(ttSchedule);
 
-                                            // Check if this specific bus is active
+                                             // BUG-2 fix: type-safe null lookup (no orElse: () => null)
                                             final String? busId = busObj is Map ? busObj['_id']?.toString() : (busObj is String ? busObj : null);
-                                            final activeBus = _activeBuses.firstWhere(
-                                              (b) => b['_id']?.toString() == busId,
-                                              orElse: () => null,
-                                            );
-                                            final bool isLiveTrip = activeBus != null && activeBus['isLive'] == true;
+                                            Map<String, dynamic>? activeBus;
+                                            if (busId != null) {
+                                              try {
+                                                activeBus = _activeBuses.firstWhere(
+                                                  (b) => b['_id']?.toString() == busId,
+                                                ) as Map<String, dynamic>;
+                                              } catch (_) {
+                                                activeBus = null;
+                                              }
+                                            }
+                                            // Local non-nullable copy for safe Dart null promotion inside if block
+                                            final activeBusData = activeBus;
+                                            final bool isLiveTrip = activeBusData != null && activeBusData['isLive'] == true;
 
                                             return Container(
                                               margin: const EdgeInsets.only(bottom: 12),
@@ -519,9 +533,8 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                       ),
                                                     ),
                                                   ],
-                                                  
                                                   // Track option for live runs in timetable
-                                                  if (isLiveTrip && activeBus != null) ...[
+                                                  if (isLiveTrip) ...[
                                                     const SizedBox(height: 10),
                                                     Align(
                                                       alignment: Alignment.centerRight,
@@ -531,10 +544,13 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                             context,
                                                             MaterialPageRoute(
                                                               builder: (_) => BusTrackScreen(
-                                                                busId: activeBus['_id']?.toString() ?? '',
-                                                                busName: activeBus['busName']?.toString() ?? 'Bus',
-                                                                busNumber: activeBus['busNumber']?.toString() ?? '',
-                                                                routeName: route['routeName']?.toString() ?? '',
+                                                                busId: activeBusData['_id']?.toString() ?? '',
+                                                                busName: activeBusData['busName']?.toString() ?? 'Bus',
+                                                                busNumber: activeBusData['busNumber']?.toString() ?? '',
+                                                                // BUG-3 fix: use this specific timetable's route, not the outer group route
+                                                                routeName: (tt['route'] is Map
+                                                                    ? (tt['route'] as Map)['routeName']?.toString()
+                                                                    : null) ?? route['routeName']?.toString() ?? '',
                                                                 fromStop: firstStopName,
                                                                 toStop: lastStopName,
                                                               ),

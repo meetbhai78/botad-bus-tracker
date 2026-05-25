@@ -10,10 +10,14 @@ const getAllBuses = async (req, res, next) => {
 
     const { from, to } = req.query;
     if (from && to) {
+      const fromQ = from.toLowerCase().trim();
+      const toQ = to.toLowerCase().trim();
       buses = buses.filter((b) => {
         if (!b.route || !b.route.stops) return false;
-        const fromStop = b.route.stops.find(s => s.name.toLowerCase().includes(from.toLowerCase()));
-        const toStop = b.route.stops.find(s => s.name.toLowerCase().includes(to.toLowerCase()));
+        // Exact match (case-insensitive) to avoid substring false positives
+        // e.g., "Botad" should NOT match "Old Botad" or "Botad Colony"
+        const fromStop = b.route.stops.find(s => s.name.toLowerCase().trim() === fromQ);
+        const toStop = b.route.stops.find(s => s.name.toLowerCase().trim() === toQ);
         return fromStop && toStop && fromStop.order < toStop.order;
       });
     }

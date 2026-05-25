@@ -6,7 +6,8 @@ const Trip = require('../models/Trip');
 const { isDbReady } = require('../config/db');
 const { haversineKm, estimateEtaMinutes } = require('../utils/distance');
 
-const liveBuses = new Map();
+const liveBuses = new Map();      // busId → payload
+const liveBusUpdatedAt = new Map(); // busId → Date.now() — for TTL cleanup
 const lastDbUpdate = new Map();
 let broadcastInterval = null;
 let dbWarningShown = false;
@@ -14,18 +15,35 @@ let dbWarningShown = false;
 function startBroadcast(io) {
   if (broadcastInterval) return;
 
-  broadcastInterval = setInterval(() => {
+  broadcastInterval = setInterval(async () => {
     if (!isDbReady()) return;
     try {
+      // --- TTL cleanup: remove buses that haven't sent a location in 60 seconds ---
+      const now = Date.now();
+      const TTL_MS = 60 * 1000; // 60 seconds
+      for (const [busId, lastSeen] of liveBusUpdatedAt.entries()) {
+        if (now - lastSeen > TTL_MS) {
+          console.log(`Bus ${busId} went stale — marking offline.`);
+          liveBuses.delete(busId);
+          liveBusUpdatedAt.delete(busId);
+          lastDbUpdate.delete(busId);
+          // Mark as offline in DB
+          try {
+            await Bus.findByIdAndUpdate(busId, { isLive: false, status: 'idle' });
+          } catch (dbErr) {
+            console.error('Failed to mark bus offline in DB:', dbErr.message);
+          }
+        }
+      }
+
       if (liveBuses.size === 0) return;
-      
       const list = Array.from(liveBuses.values());
       // Emit from memory instead of querying DB every 5 seconds
       io.emit('buses:locations', list);
     } catch (err) {
       console.error('Broadcast error:', err.message);
     }
-  }, 5000); // Increased from 3s to 5s for better performance
+  }, 5000); // 5s broadcast interval
 }
 
 function initSocket(io) {
@@ -61,6 +79,9 @@ function initSocket(io) {
       if (!isDbReady()) return;
       const { busId, lat, lng, speed, heading, tripId } = data;
       if (!socket.user || socket.user.role !== 'driver') return;
+
+      // Track this busId on the socket so disconnect can clean it up
+      socket._driverBusId = busId;
 
       try {
         const bus = await Bus.findById(busId).populate('route');
@@ -140,14 +161,29 @@ function initSocket(io) {
         };
 
         liveBuses.set(busId, payload);
+        liveBusUpdatedAt.set(busId, Date.now()); // Refresh TTL
         io.to(`bus:${busId}`).emit('bus:update', payload);
       } catch (err) {
         console.error('driver:location error:', err.message);
       }
     });
 
-    socket.on('disconnect', () => {
+    socket.on('disconnect', async () => {
       console.log('Socket disconnected:', socket.id);
+
+      // If this was a driver socket, immediately mark their bus as offline
+      if (socket.user?.role === 'driver' && socket._driverBusId) {
+        const busId = socket._driverBusId;
+        console.log(`Driver ${socket.user.name || socket.user._id} disconnected — marking bus ${busId} offline.`);
+        liveBuses.delete(busId);
+        liveBusUpdatedAt.delete(busId);
+        lastDbUpdate.delete(busId);
+        try {
+          await Bus.findByIdAndUpdate(busId, { isLive: false, status: 'idle' });
+        } catch (err) {
+          console.error('Failed to mark bus offline on disconnect:', err.message);
+        }
+      }
     });
   });
 }

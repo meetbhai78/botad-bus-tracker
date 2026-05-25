@@ -328,10 +328,11 @@ class _MapScreenState extends State<MapScreen> {
     
     setState(() {
       _trackedBusId = busId; // Immediately track it when tapped!
+      // WARN-2 fix: clear old polyline immediately so two lines don't overlap
+      // while the new route is still loading asynchronously
+      _selectedRoutePolyline = [];
       if (routeId != null) {
         _fetchRoutePolyline(routeId);
-      } else {
-        _selectedRoutePolyline = [];
       }
     });
 

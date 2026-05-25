@@ -19,10 +19,13 @@ class HomeScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: Container(
               height: 280,
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
+                // WARN-3 fix: fallback color shown when Unsplash is unavailable offline
+                color: const Color(0xFF0D9488),
                 image: DecorationImage(
-                  image: NetworkImage('https://images.unsplash.com/photo-1570125909232-eb263c188f7e?q=80&w=2000&auto=format&fit=crop'),
+                  image: const NetworkImage('https://images.unsplash.com/photo-1570125909232-eb263c188f7e?q=80&w=2000&auto=format&fit=crop'),
                   fit: BoxFit.cover,
+                  onError: (_, __) {}, // silently falls back to color above
                 ),
               ),
               child: Container(
@@ -153,6 +156,8 @@ class _FindBusBanner extends StatelessWidget {
         child: Ink(
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(20),
+            // WARN-3 fix: gradient is always visible; image is layered on top
+            // so if Unsplash fails the card still looks premium
             gradient: const LinearGradient(
               colors: [AppColors.primary, AppColors.primaryDark],
               begin: Alignment.topLeft,
@@ -161,6 +166,7 @@ class _FindBusBanner extends StatelessWidget {
             image: DecorationImage(
               image: const NetworkImage('https://images.unsplash.com/photo-1494515843206-f3117d3f51b7?q=80&w=1000&auto=format&fit=crop'),
               fit: BoxFit.cover,
+              onError: (_, __) {}, // silently falls back to gradient above
               colorFilter: ColorFilter.mode(
                 AppColors.primaryDark.withValues(alpha: 0.85),
                 BlendMode.srcOver,

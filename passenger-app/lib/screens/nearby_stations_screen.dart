@@ -72,7 +72,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
               if (stop != null && mounted) {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (_) => const FindBusScreen()),
+                  MaterialPageRoute(builder: (_) => FindBusScreen(initialFrom: stop)),
                 );
               }
             },

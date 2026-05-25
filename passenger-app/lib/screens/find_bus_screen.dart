@@ -299,7 +299,6 @@ class _FindBusScreenState extends State<FindBusScreen> {
     });
 
     final DateTime now = DateTime.now();
-    final String currentTimeStr = '${now.hour.toString().padLeft(2, '0')}:${now.minute.toString().padLeft(2, '0')}';
 
     return ListView.separated(
       padding: const EdgeInsets.all(20),
@@ -324,26 +323,35 @@ class _FindBusScreenState extends State<FindBusScreen> {
         int diffMin = endMin - startMin;
         if (diffMin < 0) diffMin += 24 * 60;
         
-        // Match with active buses to trace live tracking
+        // BUG-2 fix: type-safe null lookup via try/catch instead of orElse: () => null
         final ttBus = tt['bus'];
         Map<String, dynamic>? activeBus;
         if (ttBus != null) {
           final ttBusId = ttBus is Map ? ttBus['_id']?.toString() : ttBus.toString();
-          activeBus = _buses.firstWhere(
-            (b) => b['_id']?.toString() == ttBusId,
-            orElse: () => null,
-          );
+          try {
+            activeBus = _buses.firstWhere(
+              (b) => b['_id']?.toString() == ttBusId,
+            ) as Map<String, dynamic>;
+          } catch (_) {
+            activeBus = null;
+          }
         }
         
         final bool isLive = activeBus != null && activeBus['isLive'] == true;
         
-        // Calculate trip status
+        // WARN-5 fix: compare minutes (int) instead of HH:mm strings
+        // Prevents midnight-crossing buses (e.g. 01:00) being wrongly marked Completed at 23:45
+        final int nowMin = now.hour * 60 + now.minute;
+        final int boardMin = _parseTimeToMinutes(boardingTime);
+        final int arrMin = _parseTimeToMinutes(arrivalTime);
+
         String status = 'Upcoming';
-        Color statusColor = const Color(0xFF0D9488); // Primary Teal
+        Color statusColor = const Color(0xFF0D9488);
         if (isLive) {
           status = 'Running';
           statusColor = Colors.green;
-        } else if (currentTimeStr.compareTo(arrivalTime) > 0) {
+        } else if (nowMin > arrMin && (arrMin >= boardMin || nowMin - arrMin < 60)) {
+          // Completed: current time is past arrival AND it's not a midnight-wrap case
           status = 'Completed';
           statusColor = Colors.grey.shade600;
         } else {
@@ -577,7 +585,7 @@ class _FindBusScreenState extends State<FindBusScreen> {
                           ),
                           const SizedBox(width: 4),
                           Text(
-                            'Speed: ${(activeBus['currentLocation']?['speed'] ?? 0.0).toStringAsFixed(1)} km/h',
+                            'Speed: ${((activeBus['currentLocation'] as Map?)?['speed'] as num? ?? 0.0).toStringAsFixed(1)} km/h',
                             style: const TextStyle(
                               fontSize: 12,
                               fontWeight: FontWeight.bold,

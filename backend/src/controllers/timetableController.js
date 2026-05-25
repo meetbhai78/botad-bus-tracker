@@ -21,8 +21,10 @@ const searchTimetable = async (req, res, next) => {
     if (!from || !to) {
       return res.status(400).json({ success: false, message: 'from and to stop names required' });
     }
-    const fromRx = new RegExp(from.trim(), 'i');
-    const toRx = new RegExp(to.trim(), 'i');
+    // Escape special regex chars from user input then anchor for exact match
+    const escape = (s) => s.trim().replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const fromRx = new RegExp(`^${escape(from)}$`, 'i');
+    const toRx = new RegExp(`^${escape(to)}$`, 'i');
     
     // Find all routes
     const allRoutes = await Route.find();
