@@ -43,7 +43,7 @@ class _MoreScreenState extends State<MoreScreen> {
           const BrandLogo(),
           const SizedBox(height: 8),
           const Text(
-            'Botad city bus · Tracking only (no tickets yet)',
+            'Botad city bus · Live tracking & digital ticketing',
             style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
           ),
           const SizedBox(height: 20),
