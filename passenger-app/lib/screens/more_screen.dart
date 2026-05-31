@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:share_plus/share_plus.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import '../services/auth_service.dart';
@@ -91,6 +92,11 @@ class _MoreScreenState extends State<MoreScreen> {
                 label: 'Feedback',
                 onTap: () => _openInfo(context, 'Feedback', InfoType.feedback),
               ),
+              _Tile(
+                icon: Icons.share_rounded,
+                label: 'Share App',
+                onTap: () => _shareApp(context),
+              ),
             ],
           ),
         ],
@@ -102,6 +108,13 @@ class _MoreScreenState extends State<MoreScreen> {
     Navigator.push(
       context,
       MaterialPageRoute(builder: (_) => InfoScreen(title: title, type: type)),
+    );
+  }
+
+  void _shareApp(BuildContext context) {
+    Share.share(
+      'Botad Bus Tracker app download karein aur buses ko real-time track karein! 📱🚌\n\nDownload Link: https://github.com/meetbhai78/botad-bus-tracker/releases/download/latest/passenger-app-release.apk',
+      subject: 'Botad Bus Tracker App',
     );
   }
 }
