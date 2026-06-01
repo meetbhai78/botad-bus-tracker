@@ -2,13 +2,205 @@ import 'package:flutter/material.dart';
 import '../theme/app_colors.dart';
 import '../widgets/brand_logo.dart';
 import '../widgets/feature_card.dart';
+import '../services/alert_service.dart';
 import 'nearby_stations_screen.dart';
 import 'timetable_screen.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key, required this.onNavigateTab});
 
   final void Function(int tabIndex) onNavigateTab;
+
+  @override
+  State<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+  EmergencyAlert? _alert;
+  bool _showDot = false;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _initAlertCheck();
+    _initAnimation();
+  }
+
+  void _initAnimation() {
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1500),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.8, end: 1.2).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  Future<void> _initAlertCheck() async {
+    final alert = await AlertService.fetchAlert();
+    if (alert != null) {
+      final hasUnseen = await AlertService.hasUnseenAlert(alert);
+      if (mounted) {
+        setState(() {
+          _alert = alert;
+          _showDot = hasUnseen;
+        });
+      }
+    }
+  }
+
+  void _showAlertDialog() {
+    if (_alert == null || !_alert!.active) {
+      showModalBottomSheet(
+        context: context,
+        backgroundColor: Colors.white,
+        shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+        ),
+        builder: (context) {
+          return Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.notifications_none_rounded, size: 56, color: AppColors.textSecondary),
+                const SizedBox(height: 16),
+                const Text(
+                  'No New Alerts',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.textPrimary),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Buses are operating normally. Safe travels!',
+                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary),
+                  textAlign: TextAlign.center,
+                ),
+                const SizedBox(height: 24),
+                SizedBox(
+                  width: double.infinity,
+                  child: FilledButton(
+                    style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.primary,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      padding: const EdgeInsets.symmetric(vertical: 14),
+                    ),
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text('OK', style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          );
+        },
+      );
+      return;
+    }
+
+    // Acknowledge the alert
+    AlertService.acknowledgeAlert(_alert!);
+    setState(() {
+      _showDot = false;
+    });
+
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.white,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (context) {
+        return Padding(
+          padding: const EdgeInsets.all(24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Container(
+                    padding: const EdgeInsets.all(10),
+                    decoration: BoxDecoration(
+                      color: Colors.amber.shade100,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.warning_amber_rounded, size: 28, color: Colors.amber.shade900),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'EMERGENCY ALERT',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.w900,
+                            color: Colors.red,
+                            letterSpacing: 0.5,
+                          ),
+                        ),
+                        Text(
+                          'Announced: ${_formatTimestamp(_alert!.updatedAt)}',
+                          style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 20),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.amber.shade50.withOpacity(0.5),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.amber.shade200, width: 1),
+                ),
+                child: Text(
+                  _alert!.message,
+                  style: const TextStyle(fontSize: 15, height: 1.5, color: Color(0xFF1E293B), fontWeight: FontWeight.w500),
+                ),
+              ),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton(
+                  style: FilledButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text('ACKNOWLEDGE & CLOSE', style: TextStyle(fontWeight: FontWeight.bold)),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+
+  String _formatTimestamp(String isoString) {
+    try {
+      final dateTime = DateTime.parse(isoString).toLocal();
+      final String minutes = dateTime.minute.toString().padLeft(2, '0');
+      final String hours = dateTime.hour.toString().padLeft(2, '0');
+      return '$hours:$minutes Today';
+    } catch (_) {
+      return 'Recently';
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulseController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -20,12 +212,11 @@ class HomeScreen extends StatelessWidget {
             child: Container(
               height: 280,
               decoration: BoxDecoration(
-                // WARN-3 fix: fallback color shown when Unsplash is unavailable offline
                 color: const Color(0xFF0D9488),
                 image: DecorationImage(
                   image: const NetworkImage('https://images.unsplash.com/photo-1570125909232-eb263c188f7e?q=80&w=2000&auto=format&fit=crop'),
                   fit: BoxFit.cover,
-                  onError: (_, __) {}, // silently falls back to color above
+                  onError: (_, __) {},
                 ),
               ),
               child: Container(
@@ -44,7 +235,45 @@ class HomeScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const BrandLogo(),
+                    Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const BrandLogo(),
+                        Stack(
+                          clipBehavior: Clip.none,
+                          children: [
+                            IconButton(
+                              icon: const Icon(Icons.notifications_none_rounded, color: Colors.white, size: 28),
+                              onPressed: _showAlertDialog,
+                            ),
+                            if (_showDot)
+                              Positioned(
+                                right: 8,
+                                top: 8,
+                                child: ScaleTransition(
+                                  scale: _pulseAnimation,
+                                  child: Container(
+                                    width: 12,
+                                    height: 12,
+                                    decoration: BoxDecoration(
+                                      color: Colors.red,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(color: const Color(0xFF0D9488), width: 1.5),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: Colors.red.withOpacity(0.6),
+                                          blurRadius: 4,
+                                          spreadRadius: 2,
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ],
+                    ),
                     const Spacer(),
                     const Text(
                       'Welcome to',
@@ -71,7 +300,7 @@ class HomeScreen extends StatelessWidget {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
-              child: _FindBusBanner(onTap: () => onNavigateTab(1)),
+              child: _FindBusBanner(onTap: () => widget.onNavigateTab(1)),
             ),
           ),
           SliverToBoxAdapter(
@@ -99,7 +328,7 @@ class HomeScreen extends StatelessWidget {
                   subtitle: 'Search routes & stops',
                   color: AppColors.primary,
                   bgImageUrl: 'https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?q=80&w=800&auto=format&fit=crop',
-                  onTap: () => onNavigateTab(1),
+                  onTap: () => widget.onNavigateTab(1),
                 ),
                 FeatureCard(
                   icon: Icons.map_rounded,
@@ -107,7 +336,7 @@ class HomeScreen extends StatelessWidget {
                   subtitle: 'Track active buses',
                   color: const Color(0xFFEC4899),
                   bgImageUrl: 'https://images.unsplash.com/photo-1524661135-423995f22d0b?q=80&w=800&auto=format&fit=crop',
-                  onTap: () => onNavigateTab(2),
+                  onTap: () => widget.onNavigateTab(2),
                 ),
                 FeatureCard(
                   icon: Icons.schedule_rounded,

@@ -12,4 +12,13 @@ router.get('/app-version', (req, res) => {
   });
 });
 
+router.get('/emergency-alert', (req, res) => {
+  res.json({
+    success: true,
+    active: process.env.EMERGENCY_ALERT_ACTIVE === 'true',
+    message: process.env.EMERGENCY_ALERT_MESSAGE || 'All routes operating normally. Safe travels!',
+    updatedAt: process.env.EMERGENCY_ALERT_TIME || new Date().toISOString()
+  });
+});
+
 module.exports = router;
