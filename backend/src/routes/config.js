@@ -1,4 +1,5 @@
 const express = require('express');
+const Config = require('../models/Config');
 const router = express.Router();
 
 router.get('/app-version', (req, res) => {
@@ -12,7 +13,22 @@ router.get('/app-version', (req, res) => {
   });
 });
 
-router.get('/emergency-alert', (req, res) => {
+router.get('/emergency-alert', async (req, res) => {
+  try {
+    const alertConfig = await Config.findOne({ key: 'emergency_alert' });
+    if (alertConfig && alertConfig.value) {
+      return res.json({
+        success: true,
+        active: alertConfig.value.active === true,
+        message: alertConfig.value.message || 'All routes operating normally. Safe travels!',
+        updatedAt: alertConfig.value.updatedAt || alertConfig.updatedAt || new Date().toISOString()
+      });
+    }
+  } catch (err) {
+    console.error('Error fetching dynamic emergency alert config:', err);
+  }
+
+  // Fallback to Env Variables
   res.json({
     success: true,
     active: process.env.EMERGENCY_ALERT_ACTIVE === 'true',

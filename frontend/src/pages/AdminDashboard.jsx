@@ -23,6 +23,9 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [busList, setBusList] = useState([]);
   const [chartData, setChartData] = useState([]);
+  const [alertConfig, setAlertConfig] = useState({ active: false, message: '' });
+  const [isAlertLoading, setIsAlertLoading] = useState(false);
+  const [alertFeedback, setAlertFeedback] = useState('');
 
   useEffect(() => {
     adminApi
@@ -31,7 +34,27 @@ export default function AdminDashboard() {
       .catch(() => navigate('/login'));
     adminApi.buses().then((r) => setBusList(r.data.buses));
     adminApi.dailyReport().then((r) => setChartData(r.data.report.hourly)).catch(() => setChartData([]));
+    adminApi.getEmergencyAlert().then((r) => {
+      if (r.data.success && r.data.alert) {
+        setAlertConfig(r.data.alert);
+      }
+    });
   }, [navigate]);
+
+  const handleAlertUpdate = (e) => {
+    e.preventDefault();
+    setIsAlertLoading(true);
+    adminApi.updateEmergencyAlert(alertConfig)
+      .then((r) => {
+        if (r.data.success) {
+          setAlertConfig(r.data.alert);
+          setAlertFeedback('Broadcast updated successfully! 🚀');
+          setTimeout(() => setAlertFeedback(''), 4000);
+        }
+      })
+      .catch(() => setAlertFeedback('Error updating broadcast alert! ❌'))
+      .finally(() => setIsAlertLoading(false));
+  };
 
   const cards = [
     { label: 'Live buses', value: stats?.activeBuses ?? '—', link: null },
@@ -57,6 +80,67 @@ export default function AdminDashboard() {
             )}
           </div>
         ))}
+      </div>
+
+      <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-sm mt-6">
+        <div className="flex items-center gap-3">
+          <div className={`p-2 rounded-xl ${alertConfig.active ? 'bg-red-50 text-red-600' : 'bg-slate-50 text-slate-400'}`}>
+            <span className="text-xl">🚨</span>
+          </div>
+          <div>
+            <h3 className="font-bold text-slate-800 text-lg">Emergency Announcement Broadcast</h3>
+            <p className="text-slate-500 text-xs">Apne active passenger application users ko immediate warning banner aur pulsating bell notification bhejein.</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleAlertUpdate} className="mt-4 space-y-4">
+          <div className="flex items-center gap-2">
+            <input
+              type="checkbox"
+              id="alertActive"
+              checked={alertConfig.active}
+              onChange={(e) => setAlertConfig({ ...alertConfig, active: e.target.checked })}
+              className="w-4 h-4 text-teal-600 border-slate-300 rounded focus:ring-teal-500 cursor-pointer"
+            />
+            <label htmlFor="alertActive" className="text-sm font-semibold text-slate-700 cursor-pointer selection:bg-transparent">
+              Activate alert popup and pulsating red bell icon on users' Home Screen
+            </label>
+          </div>
+
+          <div>
+            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Emergency Announcement Message</label>
+            <textarea
+              rows={3}
+              value={alertConfig.message}
+              onChange={(e) => setAlertConfig({ ...alertConfig, message: e.target.value })}
+              placeholder="e.g. Festival rush ke karan buses delay se chalengi..."
+              className="w-full text-sm border border-slate-200 rounded-xl p-3 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500 placeholder-slate-400"
+              required={alertConfig.active}
+            />
+          </div>
+
+          <div className="flex items-center justify-between">
+            <button
+              type="submit"
+              disabled={isAlertLoading}
+              className={`px-6 py-2.5 rounded-xl font-bold text-sm text-white transition-all shadow-sm ${
+                alertConfig.active 
+                  ? 'bg-red-600 hover:bg-red-700 shadow-red-100' 
+                  : 'bg-teal-600 hover:bg-teal-700 shadow-teal-100'
+              } disabled:opacity-50`}
+            >
+              {isAlertLoading ? 'Updating...' : 'Update Alert Broadcast'}
+            </button>
+
+            {alertFeedback && (
+              <span className={`text-xs font-semibold px-3 py-1 rounded-full ${
+                alertFeedback.includes('successfully') ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-700'
+              }`}>
+                {alertFeedback}
+              </span>
+            )}
+          </div>
+        </form>
       </div>
 
       <div className="grid lg:grid-cols-2 gap-6 mt-6">

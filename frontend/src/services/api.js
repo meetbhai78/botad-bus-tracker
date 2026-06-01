@@ -56,6 +56,8 @@ export const adminApi = {
   updateTimetable: (id, data) => api.put(`/admin/timetable/${id}`, data),
   deleteTimetable: (id) => api.delete(`/admin/timetable/${id}`),
   dailyReport: () => api.get('/admin/reports/daily'),
+  getEmergencyAlert: () => api.get('/admin/emergency-alert'),
+  updateEmergencyAlert: (data) => api.post('/admin/emergency-alert', data),
 };
 
 export default api;

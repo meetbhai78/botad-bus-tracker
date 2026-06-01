@@ -71,4 +71,47 @@ router.delete('/timetable/:id', deleteTimetable);
 router.get('/reports/daily', dailyReport);
 router.get('/reports/revenue', revenueReport);
 
+router.get('/emergency-alert', async (req, res, next) => {
+  try {
+    const Config = require('../models/Config');
+    let alertConfig = await Config.findOne({ key: 'emergency_alert' });
+    if (!alertConfig) {
+      alertConfig = {
+        key: 'emergency_alert',
+        value: {
+          active: process.env.EMERGENCY_ALERT_ACTIVE === 'true',
+          message: process.env.EMERGENCY_ALERT_MESSAGE || 'All routes operating normally. Safe travels!',
+          updatedAt: process.env.EMERGENCY_ALERT_TIME || new Date().toISOString()
+        }
+      };
+    }
+    res.json({ success: true, alert: alertConfig.value });
+  } catch (err) {
+    next(err);
+  }
+});
+
+router.post('/emergency-alert', async (req, res, next) => {
+  try {
+    const Config = require('../models/Config');
+    const { active, message } = req.body;
+    
+    const alertValue = {
+      active: active === true,
+      message: message || '',
+      updatedAt: new Date().toISOString()
+    };
+    
+    const alertConfig = await Config.findOneAndUpdate(
+      { key: 'emergency_alert' },
+      { value: alertValue },
+      { new: true, upsert: true }
+    );
+    
+    res.json({ success: true, alert: alertConfig.value });
+  } catch (err) {
+    next(err);
+  }
+});
+
 module.exports = router;
