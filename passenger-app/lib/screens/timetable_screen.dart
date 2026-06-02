@@ -4,6 +4,7 @@ import 'dart:convert';
 import '../constants.dart';
 import '../theme/app_colors.dart';
 import 'bus_track_screen.dart';
+import '../services/ad_service.dart';
 
 class TimetableScreen extends StatefulWidget {
   const TimetableScreen({super.key, this.initialFromStop});
@@ -540,21 +541,25 @@ class _TimetableScreenState extends State<TimetableScreen> {
                                                       alignment: Alignment.centerRight,
                                                       child: TextButton.icon(
                                                         onPressed: () {
-                                                          Navigator.push(
-                                                            context,
-                                                            MaterialPageRoute(
-                                                              builder: (_) => BusTrackScreen(
-                                                                busId: activeBusData['_id']?.toString() ?? '',
-                                                                busName: activeBusData['busName']?.toString() ?? 'Bus',
-                                                                busNumber: activeBusData['busNumber']?.toString() ?? '',
-                                                                // BUG-3 fix: use this specific timetable's route, not the outer group route
-                                                                routeName: (tt['route'] is Map
-                                                                    ? (tt['route'] as Map)['routeName']?.toString()
-                                                                    : null) ?? route['routeName']?.toString() ?? '',
-                                                                fromStop: firstStopName,
-                                                                toStop: lastStopName,
-                                                              ),
-                                                            ),
+                                                          AdService.showRewardedVideo(
+                                                            onComplete: () {
+                                                              Navigator.push(
+                                                                context,
+                                                                MaterialPageRoute(
+                                                                  builder: (_) => BusTrackScreen(
+                                                                    busId: activeBusData['_id']?.toString() ?? '',
+                                                                    busName: activeBusData['busName']?.toString() ?? 'Bus',
+                                                                    busNumber: activeBusData['busNumber']?.toString() ?? '',
+                                                                    // BUG-3 fix: use this specific timetable's route, not the outer group route
+                                                                    routeName: (tt['route'] is Map
+                                                                        ? (tt['route'] as Map)['routeName']?.toString()
+                                                                        : null) ?? route['routeName']?.toString() ?? '',
+                                                                    fromStop: firstStopName,
+                                                                    toStop: lastStopName,
+                                                                  ),
+                                                                ),
+                                                              );
+                                                            },
                                                           );
                                                         },
                                                         style: TextButton.styleFrom(
@@ -601,6 +606,7 @@ class _TimetableScreenState extends State<TimetableScreen> {
                           },
                         ),
             ),
+            AdService.getBannerAd(),
           ],
         ),
       ),
