@@ -4,6 +4,7 @@ import '../services/stops_service.dart';
 import '../theme/app_colors.dart';
 import '../widgets/stop_search_sheet.dart';
 import 'find_bus_screen.dart';
+import '../services/ad_service.dart';
 
 /// Browse all stops — tap opens find-bus with that stop pre-selected as "from".
 class NearbyStationsScreen extends StatefulWidget {
@@ -136,6 +137,7 @@ class _NearbyStationsScreenState extends State<NearbyStationsScreen> {
           ),
         ],
       ),
+      bottomNavigationBar: AdService.getBannerAd(),
     );
   }
 }

@@ -4,24 +4,21 @@ import 'package:startapp_sdk/startapp.dart';
 class AdService {
   static final sdk = StartAppSdk();
   
-  // Session Capping: Max 3 ads per app use (per session)
-  static int _sessionAdCount = 0;
-  static const int maxAdsPerSession = 3;
+  // Session Capping: Max 3 video ads per app use (per session)
+  static int _sessionVideoAdCount = 0;
+  static const int maxVideoAdsPerSession = 3;
 
-  /// Returns whether we can show another ad in the current session
-  static bool get canShowAd => _sessionAdCount < maxAdsPerSession;
+  /// Returns whether we can show another video ad in the current session
+  static bool get canShowVideoAd => _sessionVideoAdCount < maxVideoAdsPerSession;
 
-  /// Increments the session ad count
-  static void incrementAdCount() {
-    _sessionAdCount++;
-    debugPrint('Ad displayed. Session ad count: $_sessionAdCount');
+  /// Increments the session video ad count
+  static void incrementVideoAdCount() {
+    _sessionVideoAdCount++;
+    debugPrint('Video ad displayed. Session video ad count: $_sessionVideoAdCount');
   }
 
-  /// Helper to get a beautiful Banner Ad widget if under the cap
+  /// Helper to get a beautiful Banner Ad widget (uncapped)
   static Widget getBannerAd() {
-    if (!canShowAd) {
-      return const SizedBox.shrink();
-    }
     return const StartAppBannerWidget();
   }
 
@@ -30,8 +27,8 @@ class AdService {
   static void showRewardedVideo({
     required VoidCallback onComplete,
   }) {
-    if (!canShowAd) {
-      debugPrint('Ad cap reached ($_sessionAdCount/$maxAdsPerSession). Bypassing rewarded video.');
+    if (!canShowVideoAd) {
+      debugPrint('Video ad cap reached ($_sessionVideoAdCount/$maxVideoAdsPerSession). Bypassing rewarded video.');
       onComplete();
       return;
     }
@@ -40,7 +37,7 @@ class AdService {
     sdk.loadRewardedVideoAd(
       onAdDisplayed: () {
         debugPrint('Start.io Rewarded Video displayed.');
-        incrementAdCount();
+        incrementVideoAdCount();
       },
       onAdNotDisplayed: () {
         debugPrint('Start.io Rewarded Video failed to display.');
@@ -73,7 +70,7 @@ class AdService {
   }
 }
 
-/// A self-contained stateful widget to load and display the banner ad safely
+/// A self-contained stateful widget to load and display the banner ad safely (uncapped)
 class StartAppBannerWidget extends StatefulWidget {
   const StartAppBannerWidget({super.key});
 
@@ -92,12 +89,10 @@ class _StartAppBannerWidgetState extends State<StartAppBannerWidget> {
   }
 
   void _loadAd() {
-    if (!AdService.canShowAd) return;
-    
     AdService.sdk.loadBannerAd(
       StartAppBannerType.BANNER,
       onAdImpression: () {
-        AdService.incrementAdCount();
+        debugPrint('Banner impression recorded.');
       },
       onAdClicked: () {
         debugPrint('Banner clicked.');
@@ -120,7 +115,7 @@ class _StartAppBannerWidgetState extends State<StartAppBannerWidget> {
 
   @override
   Widget build(BuildContext context) {
-    if (!AdService.canShowAd || _failed || _bannerAd == null) {
+    if (_failed || _bannerAd == null) {
       return const SizedBox.shrink();
     }
     

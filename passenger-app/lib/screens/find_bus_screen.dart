@@ -6,6 +6,7 @@ import '../theme/app_colors.dart';
 import '../services/stops_service.dart';
 import '../widgets/stop_search_sheet.dart';
 import 'bus_track_screen.dart';
+import '../services/ad_service.dart';
 
 /// Main flow: pick stops → search daily timetables & active buses → see all schedules → live track.
 class FindBusScreen extends StatefulWidget {
@@ -231,7 +232,11 @@ class _FindBusScreenState extends State<FindBusScreen> {
     if (widget.embedded) {
       return SafeArea(child: body);
     }
-    return Scaffold(appBar: AppBar(title: const Text('Find bus')), body: body);
+    return Scaffold(
+      appBar: AppBar(title: const Text('Find bus')),
+      body: body,
+      bottomNavigationBar: AdService.getBannerAd(),
+    );
   }
 
   Widget _buildResults() {

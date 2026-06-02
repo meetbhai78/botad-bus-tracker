@@ -606,10 +606,10 @@ class _TimetableScreenState extends State<TimetableScreen> {
                           },
                         ),
             ),
-            AdService.getBannerAd(),
           ],
         ),
       ),
+      bottomNavigationBar: AdService.getBannerAd(),
     );
   }
 
